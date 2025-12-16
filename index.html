@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Hydra 1.0.0</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Using FontAwesome for the logout icon if needed, but text for now -->
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="main-header">
+        <div class="logo-section">
+            <img src="https://via.placeholder.com/30" alt="Logo" class="logo-img"> <!-- Placeholder logo -->
+            <h1>Hydra 1.0.0</h1>
+        </div>
+        <button class="btn btn-logout">Logout</button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        
+        <!-- Top Action Buttons -->
+        <div class="top-actions">
+            <button class="btn btn-pill" id="start-mbca-btn">Start M-BCA</button>
+        </div>
+
+        <!-- Form Card -->
+        <div class="card">
+            <div class="form-group">
+                <label>Select Account:</label>
+                <select class="form-control">
+                    <option>Other Account...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>PORT:</label>
+                <input type="text" class="form-control" id="port-input" placeholder="Enter port example 4723 .. 472x">
+            </div>
+
+            <div class="form-group">
+                <label>DEVICE_ID:</label>
+                <input type="text" class="form-control disabled" id="device-id-input" value="Device ID will be auto-filled" readonly>
+            </div>
+
+            <div class="form-group">
+                <label>ANDROID VERSION:</label>
+                <input type="text" class="form-control disabled" id="android-version-input" value="Android Version will be auto-filled" readonly>
+            </div>
+        </div>
+
+        <!-- Middle Action Buttons -->
+        <div class="middle-actions">
+            <button class="btn btn-default" id="scrcpy-btn">Tampilkan Layar</button>
+            <button class="btn btn-default">Report Problem</button>
+            <button class="btn btn-default" id="reset-btn">Reset</button>
+            <button class="btn btn-default" id="copy-btn">Copy</button>
+            <button class="btn btn-default" id="save-btn">Save</button>
+        </div>
+
+        <!-- Log Area -->
+        <div class="log-area">
+            <!-- Content goes here -->
+        </div>
+
+    </div>
+
+    <!-- Device Selection Modal -->
+    <div id="deviceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Device</h2>
+            </div>
+            <div id="deviceListContainer">
+                <ul class="device-list" id="device-list">
+                    <!-- Devices will be added here dynamically -->
+                </ul>
+            </div>
+            <div style="text-align: right; margin-top: 10px;">
+                <button class="btn btn-default" id="cancel-device-selection">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const startBtn = document.getElementById('start-mbca-btn');
+        const scrcpyBtn = document.getElementById('scrcpy-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const saveBtn = document.getElementById('save-btn');
+        
+        // Modal elements
+        const deviceModal = document.getElementById('deviceModal');
+        const deviceList = document.getElementById('device-list');
+        const cancelDeviceSelectionBtn = document.getElementById('cancel-device-selection');
+
+        let isRunning = false;
+        let pendingPort = null; // Store port during device selection
+
+        startBtn.addEventListener('click', () => {
+            const logArea = document.querySelector('.log-area');
+            const portInput = document.getElementById('port-input');
+            const port = portInput.value.trim();
+
+            if (!isRunning) {
+                // Start logic
+                console.log('Start M-BCA button clicked');
+                
+                let message = 'Starting M-BCA...';
+                if (port) {
+                    message += ` (Port: ${port})`;
+                }
+                logArea.innerHTML += `<div>${message}</div>`;
+                
+                // Clear any previous device selection
+                const deviceInput = document.getElementById('device-id-input');
+                if (deviceInput.value !== 'Device ID will be auto-filled') {
+                    // Reset or keep? Let's keep existing logic, but maybe we want to force re-detect?
+                    // For now, assume user might want to re-detect if they click start again.
+                    // But if we want to support "remember last device", we'd pass existing ID.
+                    // For now, let's pass null deviceId to force detection/selection.
+                }
+
+                ipcRenderer.send('run-mutasi-bca', { port });
+                
+                // Change UI to Stop state
+                isRunning = true;
+                startBtn.textContent = 'Stop M-BCA';
+                startBtn.classList.remove('btn-pill');
+                startBtn.classList.add('btn-logout'); // Use red styling or similar
+            } else {
+                // Stop logic
+                console.log('Stop M-BCA button clicked');
+                logArea.innerHTML += '<div>Stopping M-BCA...</div>';
+                ipcRenderer.send('stop-mutasi-bca');
+                startBtn.disabled = true; // Prevent double clicks while stopping
+            }
+        });
+
+        // Listen for process finished event to reset button
+        ipcRenderer.on('process-finished', (event, code) => {
+             isRunning = false;
+             startBtn.textContent = 'Start M-BCA';
+             startBtn.classList.remove('btn-logout');
+             startBtn.classList.add('btn-pill');
+             startBtn.disabled = false;
+        });
+
+        ipcRenderer.on('device-info-update', (event, info) => {
+            console.log('Received device info update:', info); // Add logging
+            if (info.deviceId) {
+                const deviceInput = document.getElementById('device-id-input');
+                deviceInput.value = info.deviceId;
+                // Force UI update visual check
+                deviceInput.setAttribute('value', info.deviceId);
+            }
+            if (info.androidVersion) {
+                const versionInput = document.getElementById('android-version-input');
+                versionInput.value = info.androidVersion;
+                versionInput.setAttribute('value', info.androidVersion);
+            }
+        });
+
+        ipcRenderer.on('command-output', (event, message) => {
+            const logArea = document.querySelector('.log-area');
+            // Simple text escape to prevent HTML injection if needed, though usually safe from stdout
+            const div = document.createElement('div');
+            div.textContent = message;
+            logArea.appendChild(div);
+            // Auto scroll to bottom
+            logArea.scrollTop = logArea.scrollHeight;
+        });
+
+        // Device Selection Logic
+        ipcRenderer.on('request-device-selection', (event, { devices, originalArgs }) => {
+            // Store original args to resend later
+            pendingPort = originalArgs.port;
+
+            // Clear list
+            deviceList.innerHTML = '';
+
+            devices.forEach(device => {
+                const li = document.createElement('li');
+                li.className = 'device-item';
+                
+                const idSpan = document.createElement('div');
+                idSpan.className = 'device-item-id';
+                idSpan.textContent = device.id;
+                
+                const modelSpan = document.createElement('div');
+                modelSpan.className = 'device-item-model';
+                modelSpan.textContent = `Model: ${device.model || 'Unknown'}`;
+
+                li.appendChild(idSpan);
+                li.appendChild(modelSpan);
+
+                li.addEventListener('click', () => {
+                    // User selected this device
+                    deviceModal.style.display = 'none';
+                    const logArea = document.querySelector('.log-area');
+                    logArea.innerHTML += `<div>Selected device: ${device.id}</div>`;
+                    
+                    // Send run command again with selected device
+                    ipcRenderer.send('run-mutasi-bca', { 
+                        port: pendingPort, 
+                        deviceId: device.id 
+                    });
+                });
+
+                deviceList.appendChild(li);
+            });
+
+            // Show modal
+            deviceModal.style.display = 'block';
+        });
+
+        cancelDeviceSelectionBtn.addEventListener('click', () => {
+            deviceModal.style.display = 'none';
+            const logArea = document.querySelector('.log-area');
+            logArea.innerHTML += `<div>Device selection cancelled.</div>`;
+            
+            // Should probably reset the start button state since we are cancelling start
+            isRunning = false;
+            startBtn.textContent = 'Start M-BCA';
+            startBtn.classList.remove('btn-logout');
+            startBtn.classList.add('btn-pill');
+            startBtn.disabled = false;
+        });
+
+        // Close modal if clicked outside
+        window.onclick = function(event) {
+            if (event.target == deviceModal) {
+                cancelDeviceSelectionBtn.click();
+            }
+        }
+
+
+        resetBtn.addEventListener('click', () => {
+            document.querySelector('.log-area').innerHTML = '';
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const logContent = document.querySelector('.log-area').innerText;
+            navigator.clipboard.writeText(logContent).then(() => {
+                alert('Log copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        });
+
+        saveBtn.addEventListener('click', () => {
+            const logContent = document.querySelector('.log-area').innerText;
+            ipcRenderer.send('save-log', logContent);
+        });
+
+        scrcpyBtn.addEventListener('click', () => {
+            console.log('Tampilkan Layar button clicked');
+            const deviceId = document.getElementById('device-id-input').value;
+            const logArea = document.querySelector('.log-area');
+            logArea.innerHTML += '<div>Launching scrcpy...</div>';
+            ipcRenderer.send('run-scrcpy', { deviceId });
+        });
+    </script>
+</body>
+</html>
