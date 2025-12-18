@@ -20,7 +20,7 @@ class LoginScreen extends AppScreen {
 
     async clickButtonLogin(){
         await driver.pause(500);
-        await ElementUtil.doClick(this.btnLogin);
+        await this.btnLogin.click();
         await driver.pause(1000);
     }
 

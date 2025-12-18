@@ -8,19 +8,18 @@ exports.config = {
     // ====================
     runner: 'local',
     framework: 'jasmine',
-    jasmineNodeOpts: {
+    jasmineOpts: {
         // Updated the timeout to 30 seconds due to possible longer appium calls
         // When using XPATH
         defaultTimeoutInterval: 990000,//change ke 90000 untuk production ini kepentingan debug
         helpers: [require.resolve('@babel/register')],
     },
-    sync: true,
     logLevel: 'warn',
     deprecationWarnings: true,
     bail: 0,
     baseUrl: 'http://the-internet.herokuapp.com',
-    waitforTimeout: 8000,//10000
-    connectionRetryTimeout: 50000,//90000
+    waitforTimeout: 30000,//10000 -> 30000
+    connectionRetryTimeout: 90000,//50000 -> 90000
     connectionRetryCount: 1,
     reporters: ['spec'],
 
