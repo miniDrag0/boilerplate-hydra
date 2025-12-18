@@ -1,26 +1,27 @@
 class ElementUtil {
-    static doClick(element) {
+    static async doClick(element) {
         if (!element) {
             throw new Error('ElementUtil.doClick received undefined/null element');
         }
-        element.waitForDisplayed();
-        element.click();
+        await element.waitForDisplayed();
+        await element.click();
     }
 
-    static doSetValue(element, value) {
-        element.waitForDisplayed();
-        element.setValue(value);
+    static async doSetValue(element, value) {
+        await element.waitForDisplayed();
+        await element.setValue(value);
     }
     
-    static doGetText(element) {
-        element.waitForDisplayed();
-        return element.getText();
+    static async doGetText(element) {
+        await element.waitForDisplayed();
+        return await element.getText();
     }
     
-    static doIsDisplayed(element) {
-        return element.isDisplayed();
+    static async doIsDisplayed(element) {
+        return await element.isDisplayed();
     }
 }
 
 module.exports = ElementUtil;
+
 

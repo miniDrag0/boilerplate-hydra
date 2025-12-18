@@ -28,17 +28,17 @@ class HomeScreen extends AppScreen {
     }
 
 
-    clickLabelOneCash(){
-        ElementUtil.doClick(this.lblOneCash);
+    async clickLabelOneCash(){
+        await ElementUtil.doClick(this.lblOneCash);
     }
 
-    clickButtonTransfer(){
-        ElementUtil.doClick(this.btnTransfer);
+    async clickButtonTransfer(){
+        await ElementUtil.doClick(this.btnTransfer);
     }
 
-    clickLabelBalance(){
-        ElementUtil.doClick(this.btnShowBalance);
-        console.log(this.lblBalance.getText());
+    async clickLabelBalance(){
+        await ElementUtil.doClick(this.btnShowBalance);
+        console.log(await this.lblBalance.getText());
     }
 
 

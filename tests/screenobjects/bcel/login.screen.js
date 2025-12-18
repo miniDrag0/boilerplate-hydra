@@ -18,28 +18,29 @@ class LoginScreen extends AppScreen {
         return $(SELECTORS.PASS_TEXTFIELD);
     }
 
-    clickButtonLogin(){
-        driver.pause(500);
-        ElementUtil.doClick(this.btnLogin);
-        driver.pause(1000);
+    async clickButtonLogin(){
+        await driver.pause(500);
+        await ElementUtil.doClick(this.btnLogin);
+        await driver.pause(1000);
     }
 
-    inputPasswordLogin(password){
-        this.tfPwd.click();
-        this.tfPwd.setValue(password);
+    async inputPasswordLogin(password){
+        await this.tfPwd.click();
+        await this.tfPwd.setValue(password);
         // driver.pause(1000);
     }
 
-    submitLogin(password){
-        if (!this.btnLogin.isDisplayed()){
-            driver.launchApp();
-            driver.pause(1000);
+    async submitLogin(password){
+        if (!await this.btnLogin.isDisplayed()){
+            // Updated deprecated launchApp to activateApp
+            await driver.execute('mobile: activateApp', { appId: 'com.bcel.bcelone' });
+            await driver.pause(1000);
         }
     
-        driver.pause(300)
-        this.inputPasswordLogin(password);
-        driver.pause(3000)
-        this.clickButtonLogin();
+        await driver.pause(300)
+        await this.inputPasswordLogin(password);
+        await driver.pause(3000)
+        await this.clickButtonLogin();
     }
 }
 

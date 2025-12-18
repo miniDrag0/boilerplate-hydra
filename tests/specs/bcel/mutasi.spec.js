@@ -4,13 +4,13 @@ const HomeScreen = require('../../screenobjects/bcel/home.screen');
 
 describe('Feature BCEL', () => {
 
-    it('Login BCEL', () => {   
-        driver.pause(1500); 
-        LoginScreen.submitLogin("putri07");
-        driver.pause(3500); 
-        HomeScreen.clickLabelOneCash();
+    it('Login BCEL', async () => {   
+        await driver.pause(1500); 
+        await LoginScreen.submitLogin("putri07");
+        await driver.pause(3500); 
+        await HomeScreen.clickLabelOneCash();
         // HomeScreen.clickLabelBalance();
-        HomeScreen.clickButtonTransfer();
+        await HomeScreen.clickButtonTransfer();
     });
     
 });

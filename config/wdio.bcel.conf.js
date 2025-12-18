@@ -53,30 +53,30 @@ exports.config = {
     ],
     port: appiumPort,
 
-    beforeSession: function (capabilities, specs) {
-        const { exec } = require('child_process');
+    // beforeSession: function (capabilities, specs) {
+    //     const { execSync } = require('child_process');
 
-      // Perintah untuk uninstall uiautomator2.server
-      const uninstallServerCommand = 'adb -s '+ process.env.DEVICE_BCEL +' uninstall io.appium.uiautomator2.server';
+    //     // Perintah untuk uninstall uiautomator2.server
+    //     const uninstallServerCommand = 'adb -s ' + process.env.DEVICE_BCEL + ' uninstall io.appium.uiautomator2.server';
 
-      // Perintah untuk uninstall uiautomator2.server.test
-      const uninstallServerTestCommand = 'adb -s '+ process.env.DEVICE_BCEL +' uninstall io.appium.uiautomator2.server.test';
+    //     // Perintah untuk uninstall uiautomator2.server.test
+    //     const uninstallServerTestCommand = 'adb -s ' + process.env.DEVICE_BCEL + ' uninstall io.appium.uiautomator2.server.test';
 
-      // Eksekusi perintah adb
-      exec(uninstallServerCommand, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error executing '${uninstallServerCommand}': ${error.message}`);
-        } else {
-          console.log(`'${uninstallServerCommand}' executed successfully.`);
-        }
-      });
+    //     // Eksekusi perintah adb secara sinkron
+    //     try {
+    //         execSync(uninstallServerCommand, { stdio: 'ignore' });
+    //         console.log(`'${uninstallServerCommand}' executed successfully.`);
+    //     } catch (error) {
+    //         // Ignore error if package not installed
+    //         console.log(`Note: '${uninstallServerCommand}' failed (possibly not installed).`);
+    //     }
 
-      exec(uninstallServerTestCommand, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error executing '${uninstallServerTestCommand}': ${error.message}`);
-        } else {
-          console.log(`'${uninstallServerTestCommand}' executed successfully.`);
-        }
-      });
-    }
+    //     try {
+    //         execSync(uninstallServerTestCommand, { stdio: 'ignore' });
+    //         console.log(`'${uninstallServerTestCommand}' executed successfully.`);
+    //     } catch (error) {
+    //         // Ignore error if package not installed
+    //         console.log(`Note: '${uninstallServerTestCommand}' failed (possibly not installed).`);
+    //     }
+    // }
 };
