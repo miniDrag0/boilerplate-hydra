@@ -21,7 +21,7 @@ function createWindow () {
 let runningProcess = null;
 let runningScrcpyProcess = null;
 
-ipcMain.on('run-mutasi-bca', (event, args) => {
+const runMutasiBcel = (event, args) => {
   if (runningProcess) {
     event.reply('command-output', 'Process is already running.');
     return;
@@ -99,12 +99,12 @@ ipcMain.on('run-mutasi-bca', (event, args) => {
       }
   }
 
-  console.log(`Received run-mutasi-bca command. Port: ${port}`);
+  console.log(`Received run-mutasi-bcel command. Port: ${port}`);
   
   // Use local wdio binary to avoid npm script resolution issues
   // We target the JS file directly to avoid .bin shim issues in packaged environment
   const wdioPath = path.join(__dirname, 'node_modules', '@wdio', 'cli', 'bin', 'wdio.js');
-  const configPath = path.join(__dirname, 'config', 'wdio.mutasi.bca.conf.js');
+  const configPath = path.join(__dirname, 'config', 'wdio.mutasi.bcel.conf.js');
   
   let command;
   if (fs.existsSync(wdioPath)) {
@@ -125,9 +125,9 @@ ipcMain.on('run-mutasi-bca', (event, args) => {
   
   // Create environment variables object merging existing process.env
   const env = { ...process.env };
-  if (port) env.PORT_BCA = port;
-  if (deviceId) env.DEVICE_BCA = deviceId;
-  if (androidVersion) env.DEVICE_BCA_OS_VERSION = androidVersion;
+  if (port) env.PORT_BCEL = port;
+  if (deviceId) env.DEVICE_BCEL = deviceId;
+  if (androidVersion) env.DEVICE_BCEL_OS_VERSION = androidVersion;
 
   runningProcess = exec(command, { cwd: __dirname, env: env });
 
@@ -148,9 +148,13 @@ ipcMain.on('run-mutasi-bca', (event, args) => {
     event.reply('process-finished', code); // Notify renderer that process finished
     runningProcess = null;
   });
-});
+};
 
-ipcMain.on('stop-mutasi-bca', (event) => {
+ipcMain.on('run-mutasi-bcel', runMutasiBcel);
+// Backward compatibility if the renderer still sends the previous channel name
+ipcMain.on('run-mutasi-bca', runMutasiBcel);
+
+const stopMutasiBcel = (event) => {
   if (runningProcess) {
     console.log('Stopping process...');
     // For Windows, we might need a more aggressive kill if the child process spawns grandchildren
@@ -184,7 +188,10 @@ ipcMain.on('stop-mutasi-bca', (event) => {
       }
       runningScrcpyProcess = null;
   }
-});
+};
+
+ipcMain.on('stop-mutasi-bcel', stopMutasiBcel);
+ipcMain.on('stop-mutasi-bca', stopMutasiBcel);
 
 ipcMain.on('save-log', async (event, content) => {
   const { canceled, filePath } = await dialog.showSaveDialog({

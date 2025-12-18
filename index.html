@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Hydra 1.0.0</title>
+    <title>Viking 1.0.0</title>
     <link rel="stylesheet" href="styles.css">
     <!-- Using FontAwesome for the logout icon if needed, but text for now -->
 </head>
@@ -11,8 +11,8 @@
     <!-- Header -->
     <header class="main-header">
         <div class="logo-section">
-            <img src="https://via.placeholder.com/30" alt="Logo" class="logo-img"> <!-- Placeholder logo -->
-            <h1>Hydra 1.0.0</h1>
+            <img src="viking.png" alt="Viking logo" class="logo-img">
+            <h1>Viking 1.0.0</h1>
         </div>
         <button class="btn btn-logout">Logout</button>
     </header>
@@ -22,7 +22,7 @@
         
         <!-- Top Action Buttons -->
         <div class="top-actions">
-            <button class="btn btn-pill" id="start-mbca-btn">Start M-BCA</button>
+            <button class="btn btn-pill" id="start-bcel-btn">Start BCEL</button>
         </div>
 
         <!-- Form Card -->
@@ -85,7 +85,7 @@
 
     <script>
         const { ipcRenderer } = require('electron');
-        const startBtn = document.getElementById('start-mbca-btn');
+        const startBtn = document.getElementById('start-bcel-btn');
         const scrcpyBtn = document.getElementById('scrcpy-btn');
         const resetBtn = document.getElementById('reset-btn');
         const copyBtn = document.getElementById('copy-btn');
@@ -106,9 +106,9 @@
 
             if (!isRunning) {
                 // Start logic
-                console.log('Start M-BCA button clicked');
+                console.log('Start BCEL button clicked');
                 
-                let message = 'Starting M-BCA...';
+                let message = 'Starting BCEL...';
                 if (port) {
                     message += ` (Port: ${port})`;
                 }
@@ -123,18 +123,18 @@
                     // For now, let's pass null deviceId to force detection/selection.
                 }
 
-                ipcRenderer.send('run-mutasi-bca', { port });
+                ipcRenderer.send('run-mutasi-bcel', { port });
                 
                 // Change UI to Stop state
                 isRunning = true;
-                startBtn.textContent = 'Stop M-BCA';
+                startBtn.textContent = 'Stop BCEL';
                 startBtn.classList.remove('btn-pill');
                 startBtn.classList.add('btn-logout'); // Use red styling or similar
             } else {
                 // Stop logic
-                console.log('Stop M-BCA button clicked');
-                logArea.innerHTML += '<div>Stopping M-BCA...</div>';
-                ipcRenderer.send('stop-mutasi-bca');
+                console.log('Stop BCEL button clicked');
+                logArea.innerHTML += '<div>Stopping BCEL...</div>';
+                ipcRenderer.send('stop-mutasi-bcel');
                 startBtn.disabled = true; // Prevent double clicks while stopping
             }
         });
@@ -142,7 +142,7 @@
         // Listen for process finished event to reset button
         ipcRenderer.on('process-finished', (event, code) => {
              isRunning = false;
-             startBtn.textContent = 'Start M-BCA';
+         startBtn.textContent = 'Start BCEL';
              startBtn.classList.remove('btn-logout');
              startBtn.classList.add('btn-pill');
              startBtn.disabled = false;
@@ -203,7 +203,7 @@
                     logArea.innerHTML += `<div>Selected device: ${device.id}</div>`;
                     
                     // Send run command again with selected device
-                    ipcRenderer.send('run-mutasi-bca', { 
+                    ipcRenderer.send('run-mutasi-bcel', { 
                         port: pendingPort, 
                         deviceId: device.id 
                     });
@@ -223,7 +223,7 @@
             
             // Should probably reset the start button state since we are cancelling start
             isRunning = false;
-            startBtn.textContent = 'Start M-BCA';
+            startBtn.textContent = 'Start BCEL';
             startBtn.classList.remove('btn-logout');
             startBtn.classList.add('btn-pill');
             startBtn.disabled = false;

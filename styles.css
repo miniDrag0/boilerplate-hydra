@@ -14,7 +14,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #343a40;
+    background-color: #b71c1c; /* deeper red to distinguish from logout button */
     color: #fff;
     padding: 10px 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);

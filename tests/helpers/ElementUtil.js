@@ -1,5 +1,8 @@
 class ElementUtil {
     static doClick(element) {
+        if (!element) {
+            throw new Error('ElementUtil.doClick received undefined/null element');
+        }
         element.waitForDisplayed();
         element.click();
     }
