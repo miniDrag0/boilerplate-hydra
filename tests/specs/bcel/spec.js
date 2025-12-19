@@ -18,7 +18,7 @@ describe('Feature BCEL', () => {
         console.log(`[DEBUG] Mother Birthday: ${question1}`);
         console.log(`[DEBUG] House Number: ${question2}`);
         console.log(`[DEBUG] Phone First: ${question3}`);
-        console.log(`[DEBUG] Transfer CSV Path: ${transferCsvPath}`);
+        // console.log(`[DEBUG] Transfer CSV Path: ${transferCsvPath}`);
 
         if (!password) {
             throw new Error('PASSWORD_APP environment variable is not set');
@@ -72,7 +72,7 @@ describe('Feature BCEL', () => {
             await HomeScreen.verifyRecipientNamePresent(transfer.name);
             await HomeScreen.enterAmount(transfer.amount);
             await HomeScreen.fillInformation(question1, question2, question3,"Fund out");
-            await HomeScreen.verifyDisplayedAmount(transfer.amount);
+            await HomeScreen.verifyDisplayedAmount(transfer.amount, transfer.name);
             // add any additional steps (amount entry / confirmation) here
             console.log(`[DEBUG] Transfer #${transfer.no} (${transfer.account}) iteration done.`);
             

@@ -97,20 +97,27 @@ class HomeScreen extends AppScreen {
         await ElementUtil.doClick(this.btnNext);
     }
 
+    formatAmountForSelector(amount){
+        const numeric = Number(amount);
+        if (Number.isNaN(numeric)) {
+            throw new Error(`Amount "${amount}" is not numeric`);
+        }
+        return numeric.toLocaleString('en-US');
+    }
+
     async verifyDisplayedAmount(expectedAmount, accountName = 'unknown'){
-        await driver.waitUntil(async () => {
-            const text = await this.lblAmount.getText();
-            return /\d/.test(text);
-        }, {
-            timeout: 10000,
-            timeoutMsg: 'Amount label did not display digits'
+        const formatted = this.formatAmountForSelector(expectedAmount);
+        const expectedText = `${formatted} LAK`;
+        const selector = `(//android.widget.TextView[@text="${expectedText}"])[1]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({
+            timeout: 2000,
+            timeoutMsg: `Amount label "${expectedText}" did not appear`
         });
-        const amountText = await this.lblAmount.getText();
-        const justDigits = amountText.replace(/\D/g, '');
-        const normalizedExpected = String(expectedAmount).replace(/\D/g, '');
+        const amountText = await element.getText();
         await this.captureAmountScreenshot(accountName, amountText);
-        if (justDigits !== normalizedExpected) {
-            throw new Error(`Displayed amount "${amountText}" did not match expected ${expectedAmount}`);
+        if (amountText !== expectedText) {
+            throw new Error(`Displayed amount "${amountText}" did not match expected "${expectedText}"`);
         }
         return true;
     }
