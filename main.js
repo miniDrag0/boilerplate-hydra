@@ -29,6 +29,14 @@ const runMutasiBcel = (event, args) => {
 
   const port = args && args.port ? args.port : null;
   
+  // Extract new UI args
+  const passwordApp = args && args.passwordApp ? args.passwordApp : null;
+  const motherBirthday = args && args.motherBirthday ? args.motherBirthday : null;
+  const houseNumber = args && args.houseNumber ? args.houseNumber : null;
+  const phoneFirst = args && args.phoneFirst ? args.phoneFirst : null;
+  const password = args && args.password ? args.password : null;
+  const mode = args && args.mode ? args.mode : 'BCEL';
+
   // Device Detection
   let deviceId = args && args.deviceId ? args.deviceId : null;
   let androidVersion = null;
@@ -99,7 +107,7 @@ const runMutasiBcel = (event, args) => {
       }
   }
 
-  console.log(`Received run-mutasi-bcel command. Port: ${port}`);
+  console.log(`Received run-mutasi-bcel command. Mode: ${mode}, Port: ${port}`);
   
   // Use local wdio binary to avoid npm script resolution issues
   // We target the JS file directly to avoid .bin shim issues in packaged environment
@@ -128,6 +136,14 @@ const runMutasiBcel = (event, args) => {
   if (port) env.PORT_BCEL = port;
   if (deviceId) env.DEVICE_BCEL = deviceId;
   if (androidVersion) env.DEVICE_BCEL_OS_VERSION = androidVersion;
+
+  // Pass new UI args to environment
+  if (passwordApp) env.PASSWORD_APP = passwordApp;
+  if (motherBirthday) env.MOTHER_BIRTHDAY = motherBirthday;
+  if (houseNumber) env.HOUSE_NUMBER = houseNumber;
+  if (phoneFirst) env.PHONE_FIRST = phoneFirst;
+  if (password) env.PASSWORD_LDB = password;
+  if (mode) env.APP_MODE = mode;
 
   runningProcess = exec(command, { cwd: __dirname, env: env });
 
@@ -214,7 +230,7 @@ ipcMain.on('save-log', async (event, content) => {
 
 ipcMain.on('run-scrcpy', (event, args) => {
     console.log('Received run-scrcpy command');
-    const deviceId = args && args.deviceId && args.deviceId !== 'Device ID will be auto-filled' ? args.deviceId : null;
+    const deviceId = args && args.deviceId ? args.deviceId : null;
     
     // Check for local scrcpy
     const localScrcpyPath = path.join(__dirname, 'scrcpy', 'scrcpy-win64-v2.4', 'scrcpy.exe');

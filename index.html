@@ -14,7 +14,6 @@
             <img src="viking.png" alt="Viking logo" class="logo-img">
             <h1>Viking 1.0.0</h1>
         </div>
-        <button class="btn btn-logout">Logout</button>
     </header>
 
     <!-- Main Content -->
@@ -28,10 +27,15 @@
         <!-- Form Card -->
         <div class="card">
             <div class="form-group">
-                <label>Select Account:</label>
-                <select class="form-control">
-                    <option>Other Account...</option>
-                </select>
+                <label>App Mode:</label>
+                <div style="margin-top: 5px;">
+                    <label style="display: inline-block; margin-right: 15px; font-weight: normal;">
+                        <input type="radio" name="app-mode" value="BCEL" checked> BCEL
+                    </label>
+                    <label style="display: inline-block; font-weight: normal;">
+                        <input type="radio" name="app-mode" value="LDB"> LDB
+                    </label>
+                </div>
             </div>
 
             <div class="form-group">
@@ -47,6 +51,30 @@
             <div class="form-group">
                 <label>ANDROID VERSION:</label>
                 <input type="text" class="form-control disabled" id="android-version-input" value="Android Version will be auto-filled" readonly>
+            </div>
+
+            <!-- BCEL Specific Fields -->
+            <div id="bcel-fields">
+                <div class="form-group">
+                    <label>Upload CSV Account Data:</label>
+                    <input type="file" class="form-control" id="bcel-csv" accept=".csv">
+                    <small class="form-text text-muted">
+                        CSV format: Password, MotherBirthday, HouseNumber, PhoneFirst
+                    </small>
+                </div>
+            </div>
+
+            <!-- LDB Specific Fields -->
+            <div id="ldb-fields" style="display: none;">
+                <div class="form-group">
+                    <label>Password:</label>
+                    <div style="position: relative;">
+                        <input type="password" class="form-control" id="ldb-password" placeholder="Enter Password" style="padding-right: 40px;">
+                        <button type="button" id="toggle-ldb-password" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: none; background: none; cursor: pointer;">
+                            👁️
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -91,58 +119,263 @@
         const copyBtn = document.getElementById('copy-btn');
         const saveBtn = document.getElementById('save-btn');
         
-        // Modal elements
-        const deviceModal = document.getElementById('deviceModal');
-        const deviceList = document.getElementById('device-list');
-        const cancelDeviceSelectionBtn = document.getElementById('cancel-device-selection');
+        // Mode handling
+        const modeRadios = document.getElementsByName('app-mode');
+        const bcelFields = document.getElementById('bcel-fields');
+        const ldbFields = document.getElementById('ldb-fields');
+        
+        // Password Toggle Logic
+        function setupPasswordToggle(inputId, toggleId) {
+            const input = document.getElementById(inputId);
+            if (!input) return; // Guard in case element is missing (like bcel-password now)
+            const toggle = document.getElementById(toggleId);
+            
+            toggle.addEventListener('click', () => {
+                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                input.setAttribute('type', type);
+                toggle.textContent = type === 'password' ? '👁️' : '🔒';
+            });
+        }
 
+        // setupPasswordToggle('bcel-password', 'toggle-bcel-password'); // Removed as bcel-password input is gone
+        setupPasswordToggle('ldb-password', 'toggle-ldb-password');
+
+        function getSelectedMode() {
+            return document.querySelector('input[name="app-mode"]:checked').value;
+        }
+
+        // CSV Parser
+        function parseCSV(text) {
+            const lines = text.trim().split(/\r?\n/);
+            if (lines.length < 1) return [];
+            
+            const data = [];
+            let startIndex = 0;
+            
+            // Check for header
+            if (lines[0]) {
+                const firstLine = lines[0].toLowerCase();
+                if (firstLine.includes('password') || firstLine.includes('mother')) {
+                    startIndex = 1; // Skip header
+                }
+            }
+
+            for (let i = startIndex; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                // Detect delimiter
+                const delimiter = line.includes(';') ? ';' : ',';
+                const parts = line.split(delimiter).map(p => p.trim());
+                
+                if (parts.length >= 4) {
+                    data.push({
+                        passwordApp: parts[0],
+                        motherBirthday: parts[1],
+                        houseNumber: parts[2],
+                        phoneFirst: parts[3]
+                    });
+                }
+            }
+            return data;
+        }
+
+        let batchQueue = [];
+        let isBatchRunning = false;
         let isRunning = false;
-        let pendingPort = null; // Store port during device selection
+        let pendingArgs = null; // Store all args during device selection
+
+        function processNextInBatch() {
+            if (batchQueue.length === 0) {
+                const logArea = document.querySelector('.log-area');
+                logArea.innerHTML += `<div>Batch processing finished.</div>`;
+                isBatchRunning = false;
+                startBtn.textContent = 'Start BCEL';
+                startBtn.classList.remove('btn-logout');
+                startBtn.classList.add('btn-pill');
+                startBtn.disabled = false;
+                return;
+            }
+
+            const currentData = batchQueue.shift();
+            const logArea = document.querySelector('.log-area');
+            logArea.innerHTML += `<div>Starting batch item... (Queue: ${batchQueue.length} remaining)</div>`;
+
+            // Merge with global args (port, deviceId)
+            // We need to retrieve the original port/deviceId from when Start was clicked.
+            // Let's store them in a global context or pass them.
+            
+            const args = { 
+                ...currentData,
+                port: pendingArgs ? pendingArgs.port : document.getElementById('port-input').value.trim(),
+                deviceId: document.getElementById('device-id-input').value === 'Device ID will be auto-filled' ? null : document.getElementById('device-id-input').value,
+                mode: 'BCEL'
+            };
+
+            ipcRenderer.send('run-mutasi-bcel', args);
+        }
 
         startBtn.addEventListener('click', () => {
+            console.log('Start button clicked');
             const logArea = document.querySelector('.log-area');
-            const portInput = document.getElementById('port-input');
-            const port = portInput.value.trim();
+            
+            try {
+                const portInput = document.getElementById('port-input');
+                const port = portInput.value.trim();
+                const mode = getSelectedMode();
+                
+                if (!isRunning) {
+                    console.log(`Attempting to start in ${mode} mode`);
+                    
+                    // Validation Logic
+                    if (mode === 'BCEL') {
+                        const csvInput = document.getElementById('bcel-csv');
+                        if (!csvInput.files.length) {
+                            alert('Please upload a CSV file.');
+                            return;
+                        }
+                        const csvFile = csvInput.files[0];
 
-            if (!isRunning) {
-                // Start logic
-                console.log('Start BCEL button clicked');
-                
-                let message = 'Starting BCEL...';
-                if (port) {
-                    message += ` (Port: ${port})`;
-                }
-                logArea.innerHTML += `<div>${message}</div>`;
-                
-                // Clear any previous device selection
-                const deviceInput = document.getElementById('device-id-input');
-                if (deviceInput.value !== 'Device ID will be auto-filled') {
-                    // Reset or keep? Let's keep existing logic, but maybe we want to force re-detect?
-                    // For now, assume user might want to re-detect if they click start again.
-                    // But if we want to support "remember last device", we'd pass existing ID.
-                    // For now, let's pass null deviceId to force detection/selection.
-                }
+                        // Read File
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            try {
+                                const text = e.target.result;
+                                console.log('CSV file read, parsing...');
+                                const data = parseCSV(text);
+                                
+                                if (data.length === 0) {
+                                    alert('No valid data found in CSV. Please ensure format: Password, MotherBirthday, HouseNumber, PhoneFirst');
+                                    return;
+                                }
 
-                ipcRenderer.send('run-mutasi-bcel', { port });
-                
-                // Change UI to Stop state
-                isRunning = true;
-                startBtn.textContent = 'Stop BCEL';
-                startBtn.classList.remove('btn-pill');
-                startBtn.classList.add('btn-logout'); // Use red styling or similar
-            } else {
-                // Stop logic
-                console.log('Stop BCEL button clicked');
-                logArea.innerHTML += '<div>Stopping BCEL...</div>';
-                ipcRenderer.send('stop-mutasi-bcel');
-                startBtn.disabled = true; // Prevent double clicks while stopping
+                                console.log(`Parsed ${data.length} rows from CSV`);
+                                const logAreaRef = document.querySelector('.log-area'); // Re-select to be safe
+                                logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
+                                
+                                // Initialize Batch
+                                batchQueue = data;
+                                isBatchRunning = true;
+                                isRunning = true;
+                                
+                                // Capture initial args (port etc)
+                                pendingArgs = { port, mode }; 
+
+                                // UI State
+                                startBtn.textContent = `Stop ${mode}`;
+                                startBtn.classList.remove('btn-pill');
+                                startBtn.classList.add('btn-logout');
+
+                                processNextInBatch();
+                            } catch (err) {
+                                console.error('Error processing CSV:', err);
+                                alert('Error processing CSV: ' + err.message);
+                            }
+                        };
+                        reader.onerror = function(err) {
+                            console.error('Error reading file:', err);
+                            alert('Error reading file');
+                        };
+                        reader.readAsText(csvFile);
+                        // return; // Async handling handles the rest - REMOVE THIS RETURN
+                        // The return here prevents 'isRunning' check inside the listener from blocking duplicate clicks immediately? 
+                        // Actually, the issue is likely 'isRunning' is defined in outer scope, 
+                        // but inside FileReader callback, we might be referencing something else? 
+                        // No, isRunning is global let. 
+                        
+                        // Wait, the error is "isRunning is not defined". 
+                        // This suggests we are in a context where 'isRunning' variable is not reachable.
+                        // But it's defined at the top of the script tag.
+                        
+                        // Ah, if the user clicked Start, and then the Reader callback fires... 
+                        // Wait, the error usually happens if I typo-ed or if scope is lost.
+                        // Let's check where isRunning is defined. line 154: let isRunning = false;
+                        
+                        // If the error says "isRunning is not defined", it might be thrown from a place where I assumed it exists.
+                        // Let's look at where I used it.
+                        
+                        // Wait, I see "isRunning is not defined" error in the alert? 
+                        // That means the catch block caught a ReferenceError.
+                        
+                        // In the try block:
+                        // if (!isRunning) { ... }
+                        
+                        // If isRunning wasn't defined, it would crash there.
+                        // But I defined it at line 154 in previous file content. 
+                        // Let's make sure it's still there.
+                        
+                        // Wait, I might have messed up the variable name in previous edits or it's shadowed?
+                        // Let's check the file content again.
+                        
+                        return;
+
+                    } else {
+                        // LDB Logic (unchanged)
+                        const pass = document.getElementById('ldb-password').value.trim();
+                        if (!pass) {
+                            alert('Password is mandatory for LDB mode.');
+                            return;
+                        }
+                        
+                         // Start logic for LDB
+                        console.log(`Start ${mode} button clicked`);
+                        
+                        let message = `Starting ${mode}...`;
+                        if (port) {
+                            message += ` (Port: ${port})`;
+                        }
+                        logArea.innerHTML += `<div>${message}</div>`;
+                        
+                        const args = { 
+                            port, 
+                            mode,
+                            password: pass
+                        };
+
+                        ipcRenderer.send('run-mutasi-bcel', args);
+
+                        // Change UI to Stop state
+                        isRunning = true;
+                        startBtn.textContent = `Stop ${mode}`;
+                        startBtn.classList.remove('btn-pill');
+                        startBtn.classList.add('btn-logout');
+                    }
+
+                } else {
+                    // Stop logic
+                    console.log(`Stop ${mode} button clicked`);
+                    logArea.innerHTML += `<div>Stopping ${mode}...</div>`;
+                    
+                    // If batch running, clear queue
+                    if (isBatchRunning) {
+                        batchQueue = [];
+                        isBatchRunning = false;
+                        logArea.innerHTML += `<div>Batch cancelled.</div>`;
+                    }
+
+                    ipcRenderer.send('stop-mutasi-bcel');
+                    startBtn.disabled = true; // Prevent double clicks while stopping
+                }
+            } catch (err) {
+                console.error('Error in start button handler:', err);
+                alert('An error occurred: ' + err.message);
             }
         });
 
-        // Listen for process finished event to reset button
+        // Listen for process finished event
         ipcRenderer.on('process-finished', (event, code) => {
+             // If batch is running, process next
+             if (isBatchRunning) {
+                 // Delay slightly to ensure cleanup?
+                 setTimeout(() => {
+                     processNextInBatch();
+                 }, 2000); // 2 second delay between runs
+                 return;
+             }
+
              isRunning = false;
-         startBtn.textContent = 'Start BCEL';
+             const mode = getSelectedMode();
+             startBtn.textContent = `Start ${mode}`;
              startBtn.classList.remove('btn-logout');
              startBtn.classList.add('btn-pill');
              startBtn.disabled = false;
@@ -176,11 +409,11 @@
         // Device Selection Logic
         ipcRenderer.on('request-device-selection', (event, { devices, originalArgs }) => {
             // Store original args to resend later
-            pendingPort = originalArgs.port;
+            pendingArgs = originalArgs;
 
             // Clear list
             deviceList.innerHTML = '';
-
+            
             devices.forEach(device => {
                 const li = document.createElement('li');
                 li.className = 'device-item';
@@ -202,11 +435,9 @@
                     const logArea = document.querySelector('.log-area');
                     logArea.innerHTML += `<div>Selected device: ${device.id}</div>`;
                     
-                    // Send run command again with selected device
-                    ipcRenderer.send('run-mutasi-bcel', { 
-                        port: pendingPort, 
-                        deviceId: device.id 
-                    });
+                    // Send run command again with selected device and preserved args
+                    const newArgs = { ...pendingArgs, deviceId: device.id };
+                    ipcRenderer.send('run-mutasi-bcel', newArgs);
                 });
 
                 deviceList.appendChild(li);
@@ -221,9 +452,10 @@
             const logArea = document.querySelector('.log-area');
             logArea.innerHTML += `<div>Device selection cancelled.</div>`;
             
-            // Should probably reset the start button state since we are cancelling start
+            // Reset start button
             isRunning = false;
-            startBtn.textContent = 'Start BCEL';
+            const mode = getSelectedMode();
+            startBtn.textContent = `Start ${mode}`;
             startBtn.classList.remove('btn-logout');
             startBtn.classList.add('btn-pill');
             startBtn.disabled = false;
@@ -238,20 +470,32 @@
 
 
         resetBtn.addEventListener('click', () => {
+            console.log('Reset button clicked');
             document.querySelector('.log-area').innerHTML = '';
         });
 
         copyBtn.addEventListener('click', () => {
+            console.log('Copy button clicked');
             const logContent = document.querySelector('.log-area').innerText;
+            if (!logContent) {
+                alert('Nothing to copy!');
+                return;
+            }
             navigator.clipboard.writeText(logContent).then(() => {
                 alert('Log copied to clipboard!');
             }).catch(err => {
                 console.error('Failed to copy text: ', err);
+                alert('Failed to copy log');
             });
         });
 
         saveBtn.addEventListener('click', () => {
+            console.log('Save button clicked');
             const logContent = document.querySelector('.log-area').innerText;
+            if (!logContent) {
+                alert('Nothing to save!');
+                return;
+            }
             ipcRenderer.send('save-log', logContent);
         });
 
@@ -260,7 +504,10 @@
             const deviceId = document.getElementById('device-id-input').value;
             const logArea = document.querySelector('.log-area');
             logArea.innerHTML += '<div>Launching scrcpy...</div>';
-            ipcRenderer.send('run-scrcpy', { deviceId });
+            
+            // Pass the value directly, avoiding the "Device ID will be auto-filled" placeholder if it's there
+            const targetDevice = deviceId === 'Device ID will be auto-filled' ? null : deviceId;
+            ipcRenderer.send('run-scrcpy', { deviceId: targetDevice });
         });
     </script>
 </body>

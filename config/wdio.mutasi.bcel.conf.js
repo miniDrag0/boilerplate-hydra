@@ -6,7 +6,7 @@ const path = require('path');
 // Specs
 // ============
 config.specs = [
-    path.join(__dirname, '../tests/specs/bcel/mutasi.spec.js')
+    path.join(__dirname, '../tests/specs/bcel/spec.js')
 ];
 
 // ============

@@ -5,9 +5,9 @@ const LoginScreen = require('./login.screen');
 
 const SELECTORS = {
     ONECASH_LABEL: '//android.widget.TextView[@text="OneCash Wallet"]',
-    TRANSFER_BUTTON: 'id=TRANSFERbutton',
-    SHOW_BALANCE_BUTTON: 'id=show-balance-button',
-    BALANCE_LABEL: 'id=balance-list',
+    TRANSFER_BUTTON: '//android.view.View[@resource-id="TRANSFERbutton"]',
+    SHOW_BALANCE_BUTTON: '//android.widget.TextView[@resource-id="show-balance-button"]',
+    BALANCE_LABEL: '//android.widget.TextView[@resource-id="balance-list"]',
 };
 
 class HomeScreen extends AppScreen {
