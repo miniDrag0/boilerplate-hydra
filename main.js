@@ -36,6 +36,8 @@ const runMutasiBcel = (event, args) => {
   const phoneFirst = args && args.phoneFirst ? args.phoneFirst : null;
   const password = args && args.password ? args.password : null;
   const mode = args && args.mode ? args.mode : 'BCEL';
+  const transferCsvPath = args && args.transferCsvPath ? args.transferCsvPath : null;
+  const transferCsvContent = args && args.transferCsvContent ? args.transferCsvContent : null;
 
   // Device Detection
   let deviceId = args && args.deviceId ? args.deviceId : null;
@@ -144,6 +146,8 @@ const runMutasiBcel = (event, args) => {
   if (phoneFirst) env.PHONE_FIRST = phoneFirst;
   if (password) env.PASSWORD_LDB = password;
   if (mode) env.APP_MODE = mode;
+  if (transferCsvPath) env.TRANSFER_CSV_PATH = transferCsvPath;
+  if (transferCsvContent) env.TRANSFER_CSV_CONTENT = transferCsvContent;
 
   runningProcess = exec(command, { cwd: __dirname, env: env });
 

@@ -56,10 +56,17 @@
             <!-- BCEL Specific Fields -->
             <div id="bcel-fields">
                 <div class="form-group">
-                    <label>Upload CSV Account Data:</label>
+                    <label>Upload CSV Account Data (Login):</label>
                     <input type="file" class="form-control" id="bcel-csv" accept=".csv">
                     <small class="form-text text-muted">
-                        CSV format: Password, MotherBirthday, HouseNumber, PhoneFirst
+                        Format: Password, MotherBirthday, HouseNumber, PhoneFirst
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Upload CSV Transfer List:</label>
+                    <input type="file" class="form-control" id="bcel-transfer-csv" accept=".csv">
+                    <small class="form-text text-muted">
+                        Format: No, Nama Akun, Nomor Akun, Amount
                     </small>
                 </div>
             </div>
@@ -209,11 +216,20 @@
                 ...currentData,
                 port: pendingArgs ? pendingArgs.port : document.getElementById('port-input').value.trim(),
                 deviceId: document.getElementById('device-id-input').value === 'Device ID will be auto-filled' ? null : document.getElementById('device-id-input').value,
-                mode: 'BCEL'
+                mode: 'BCEL',
+                transferCsvPath: pendingArgs ? pendingArgs.transferCsvPath : null,
+                transferCsvContent: pendingArgs ? pendingArgs.transferCsvContent : null
             };
 
             ipcRenderer.send('run-mutasi-bcel', args);
         }
+
+        const readFileAsync = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (err) => reject(err);
+            reader.readAsText(file);
+        });
 
         startBtn.addEventListener('click', () => {
             console.log('Start button clicked');
@@ -230,20 +246,27 @@
                     // Validation Logic
                     if (mode === 'BCEL') {
                         const csvInput = document.getElementById('bcel-csv');
+                        const transferCsvInput = document.getElementById('bcel-transfer-csv');
+
                         if (!csvInput.files.length) {
-                            alert('Please upload a CSV file.');
+                            alert('Please upload the Account Data CSV file.');
                             return;
                         }
-                        const csvFile = csvInput.files[0];
+                        if (!transferCsvInput.files.length) {
+                            alert('Please upload the Transfer List CSV file.');
+                            return;
+                        }
 
-                        // Read File
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
+                        const csvFile = csvInput.files[0];
+                        const transferFile = transferCsvInput.files[0];
+                        const transferCsvPath = transferFile.path;
+
+                        Promise.all([
+                            readFileAsync(csvFile),
+                            readFileAsync(transferFile)
+                        ]).then(([addressCsvText, transferCsvText]) => {
                             try {
-                                const text = e.target.result;
-                                console.log('CSV file read, parsing...');
-                                const data = parseCSV(text);
-                                
+                                const data = parseCSV(addressCsvText);
                                 if (data.length === 0) {
                                     alert('No valid data found in CSV. Please ensure format: Password, MotherBirthday, HouseNumber, PhoneFirst');
                                     return;
@@ -258,8 +281,8 @@
                                 isBatchRunning = true;
                                 isRunning = true;
                                 
-                                // Capture initial args (port etc)
-                                pendingArgs = { port, mode }; 
+                                // Capture initial args (port etc) plus transfer info
+                                pendingArgs = { port, mode, transferCsvPath, transferCsvContent: transferCsvText }; 
 
                                 // UI State
                                 startBtn.textContent = `Stop ${mode}`;
@@ -271,42 +294,10 @@
                                 console.error('Error processing CSV:', err);
                                 alert('Error processing CSV: ' + err.message);
                             }
-                        };
-                        reader.onerror = function(err) {
-                            console.error('Error reading file:', err);
-                            alert('Error reading file');
-                        };
-                        reader.readAsText(csvFile);
-                        // return; // Async handling handles the rest - REMOVE THIS RETURN
-                        // The return here prevents 'isRunning' check inside the listener from blocking duplicate clicks immediately? 
-                        // Actually, the issue is likely 'isRunning' is defined in outer scope, 
-                        // but inside FileReader callback, we might be referencing something else? 
-                        // No, isRunning is global let. 
-                        
-                        // Wait, the error is "isRunning is not defined". 
-                        // This suggests we are in a context where 'isRunning' variable is not reachable.
-                        // But it's defined at the top of the script tag.
-                        
-                        // Ah, if the user clicked Start, and then the Reader callback fires... 
-                        // Wait, the error usually happens if I typo-ed or if scope is lost.
-                        // Let's check where isRunning is defined. line 154: let isRunning = false;
-                        
-                        // If the error says "isRunning is not defined", it might be thrown from a place where I assumed it exists.
-                        // Let's look at where I used it.
-                        
-                        // Wait, I see "isRunning is not defined" error in the alert? 
-                        // That means the catch block caught a ReferenceError.
-                        
-                        // In the try block:
-                        // if (!isRunning) { ... }
-                        
-                        // If isRunning wasn't defined, it would crash there.
-                        // But I defined it at line 154 in previous file content. 
-                        // Let's make sure it's still there.
-                        
-                        // Wait, I might have messed up the variable name in previous edits or it's shadowed?
-                        // Let's check the file content again.
-                        
+                        }).catch(err => {
+                            console.error('Error reading files:', err);
+                            alert('Error reading CSV files.');
+                        });
                         return;
 
                     } else {
@@ -317,7 +308,7 @@
                             return;
                         }
                         
-                         // Start logic for LDB
+                        // Start logic for LDB
                         console.log(`Start ${mode} button clicked`);
                         
                         let message = `Starting ${mode}...`;

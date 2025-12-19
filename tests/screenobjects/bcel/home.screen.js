@@ -2,12 +2,25 @@ const AppScreen = require('../app.screen');
 const ElementUtil = require('../../helpers/ElementUtil');
 const GestureUtil = require('../../helpers/Gestures');
 const LoginScreen = require('./login.screen');
+const fs = require('fs');
+const path = require('path');
 
 const SELECTORS = {
     ONECASH_LABEL: '//android.widget.TextView[@text="OneCash Wallet"]',
-    TRANSFER_BUTTON: '//android.view.View[@resource-id="TRANSFERbutton"]',
+    UNIONPAY_LABEL: '//android.widget.TextView[@text="UnionPay Chip Gold"]',
+    TRANSFER_BUTTON: '//android.widget.TextView[@text="Transfer"]',
     SHOW_BALANCE_BUTTON: '//android.widget.TextView[@resource-id="show-balance-button"]',
     BALANCE_LABEL: '//android.widget.TextView[@resource-id="balance-list"]',
+    ACCOUNT_TEXTFIELD: '//android.widget.EditText',
+    NEXT_BUTTON: '//android.widget.TextView[@resource-id="next"]',
+    AMOUNT_TEXTFIELD: '//android.widget.EditText[@resource-id="amount"]',
+    AMOUNT_LABEL: '(//android.widget.TextView[contains(@text,"LAK")])[1]',
+    QUESTION_1_LABEL: '//android.widget.TextView[@text="Question 1"]',
+    ANSWER_1_TEXTFIELD: '//android.widget.EditText[@resource-id="ans1"]',
+    ANSWER_2_TEXTFIELD: '//android.widget.EditText[@resource-id="ans2"]',
+    ANSWER_3_TEXTFIELD: '//android.widget.EditText[@resource-id="ans3"]',
+    DESCRIPTION_TEXTFIELD: '//android.widget.EditText[@resource-id="desc"]',
+
 };
 
 class HomeScreen extends AppScreen {
@@ -16,6 +29,9 @@ class HomeScreen extends AppScreen {
     }
     get lblOneCash() {
         return $(SELECTORS.ONECASH_LABEL);
+    }
+    get lblUnionPay() {
+        return $(SELECTORS.UNIONPAY_LABEL);
     }
     get lblBalance() {
         return $(SELECTORS.BALANCE_LABEL);
@@ -26,10 +42,40 @@ class HomeScreen extends AppScreen {
     get btnShowBalance() {
         return $(SELECTORS.SHOW_BALANCE_BUTTON);
     }
+    get tfAccount() {
+        return $(SELECTORS.ACCOUNT_TEXTFIELD);
+    }
+    get btnNext() {
+        return $(SELECTORS.NEXT_BUTTON);
+    }
+    get tfAmount() {
+        return $(SELECTORS.AMOUNT_TEXTFIELD);
+    }
+    get lblAmount() {
+        return $(SELECTORS.AMOUNT_LABEL);
+    }
+    get lblQuestion1() {
+        return $(SELECTORS.QUESTION_1_LABEL);
+    }
+    get tfAnswer1() {
+        return $(SELECTORS.ANSWER_1_TEXTFIELD);
+    }
+    get tfAnswer2() {
+        return $(SELECTORS.ANSWER_2_TEXTFIELD);
+    }
+    get tfAnswer3() {
+        return $(SELECTORS.ANSWER_3_TEXTFIELD);
+    }
+    get tfDescription() {
+        return $(SELECTORS.DESCRIPTION_TEXTFIELD);
+    }
 
 
     async clickLabelOneCash(){
         await ElementUtil.doClick(this.lblOneCash);
+    }
+    async clickLabelUnionPay(){
+        await ElementUtil.doClick(this.lblUnionPay);
     }
 
     async clickButtonTransfer(){
@@ -41,15 +87,80 @@ class HomeScreen extends AppScreen {
         console.log(await this.lblBalance.getText());
     }
 
-
-
-    async clickButtonSaldo(){
-        await $('android=new UiScrollable(new UiSelector().resourceIdMatches(\".*:id/nsv_home\").scrollable(true)).scrollIntoView(new UiSelector().resourceIdMatches(\".*:id/rv_widget\"))');
-
-        const elem = await $(SELECTORS.SALDO_BUTTON);
-        await elem.click();
-
+    async enterAccount(account){
+        await ElementUtil.doSetValue(this.tfAccount, account);
+        await ElementUtil.doClick(this.btnNext);
     }
+
+    async enterAmount(amount){
+        await ElementUtil.doSetValue(this.tfAmount, amount);
+        await ElementUtil.doClick(this.btnNext);
+    }
+
+    async verifyDisplayedAmount(expectedAmount, accountName = 'unknown'){
+        await driver.waitUntil(async () => {
+            const text = await this.lblAmount.getText();
+            return /\d/.test(text);
+        }, {
+            timeout: 10000,
+            timeoutMsg: 'Amount label did not display digits'
+        });
+        const amountText = await this.lblAmount.getText();
+        const justDigits = amountText.replace(/\D/g, '');
+        const normalizedExpected = String(expectedAmount).replace(/\D/g, '');
+        await this.captureAmountScreenshot(accountName, amountText);
+        if (justDigits !== normalizedExpected) {
+            throw new Error(`Displayed amount "${amountText}" did not match expected ${expectedAmount}`);
+        }
+        return true;
+    }
+
+    async captureAmountScreenshot(accountName, amountText){
+        const screenshotDir = path.join(process.cwd(), 'screenshots', 'amount-verify');
+        if (!fs.existsSync(screenshotDir)){
+            fs.mkdirSync(screenshotDir, { recursive: true });
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const safeAccount = String(accountName || 'unknown').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'');
+        const fileName = `${timestamp}-${safeAccount}.png`;
+        const filePath = path.join(screenshotDir, fileName);
+        await driver.saveScreenshot(filePath);
+        console.log(`Saved amount verification screenshot: ${filePath} (${amountText})`);
+    }
+
+    async verifyRecipientNamePresent(name){
+        if (!name) throw new Error('Name must be provided for recipient verification');
+        const upperName = name.toUpperCase().replace(/"/g,'').replace(/'/g,'');
+        const selector = `//android.widget.TextView[contains(translate(@text,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),"${upperName}")]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({ timeout: 5000 });
+        return true;
+    }
+
+    async fillInformation(answer1, answer2, answer3, description){
+        let questionVisible = false;
+        try {
+            questionVisible = await this.lblQuestion1.isDisplayed();
+        } catch (err) {
+            questionVisible = false;
+        }
+        if(questionVisible){
+            await ElementUtil.doSetValue(this.tfAnswer1, answer1);
+            await ElementUtil.doClick(this.btnNext);
+            await ElementUtil.doSetValue(this.tfAnswer2, answer2);
+            await ElementUtil.doClick(this.btnNext);
+            await ElementUtil.doSetValue(this.tfAnswer3, answer3);
+            await ElementUtil.doClick(this.btnNext);
+            await ElementUtil.doSetValue(this.tfDescription, description);
+            await ElementUtil.doClick(this.btnNext);
+        }else{
+            await ElementUtil.doSetValue(this.tfDescription, description);
+            await ElementUtil.doClick(this.btnNext);
+        }
+    }
+
+
+
 
 
     clickButtonHistory(access_pass){
