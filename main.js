@@ -38,6 +38,7 @@ const runMutasiBcel = (event, args) => {
   const mode = args && args.mode ? args.mode : 'BCEL';
   const transferCsvPath = args && args.transferCsvPath ? args.transferCsvPath : null;
   const transferCsvContent = args && args.transferCsvContent ? args.transferCsvContent : null;
+  const screenshotDir = args && args.screenshotDir ? args.screenshotDir : null;
 
   // Device Detection
   let deviceId = args && args.deviceId ? args.deviceId : null;
@@ -148,6 +149,8 @@ const runMutasiBcel = (event, args) => {
   if (mode) env.APP_MODE = mode;
   if (transferCsvPath) env.TRANSFER_CSV_PATH = transferCsvPath;
   if (transferCsvContent) env.TRANSFER_CSV_CONTENT = transferCsvContent;
+  if (screenshotDir) env.SCREENSHOT_BASE_DIR = screenshotDir;
+  if (transferCsvContent) env.TRANSFER_CSV_CONTENT = transferCsvContent;
 
   runningProcess = exec(command, { cwd: __dirname, env: env });
 
@@ -212,6 +215,14 @@ const stopMutasiBcel = (event) => {
 
 ipcMain.on('stop-mutasi-bcel', stopMutasiBcel);
 ipcMain.on('stop-mutasi-bca', stopMutasiBcel);
+
+ipcMain.handle('choose-screenshot-dir', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  });
+  if (canceled) return null;
+  return filePaths;
+});
 
 ipcMain.on('save-log', async (event, content) => {
   const { canceled, filePath } = await dialog.showSaveDialog({

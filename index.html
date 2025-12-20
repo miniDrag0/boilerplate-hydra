@@ -69,6 +69,16 @@
                         Format: No, Nama Akun, Nomor Akun, Amount
                     </small>
                 </div>
+            <div class="form-group">
+                <label>Screenshot/CSV Mutasi Directory:</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" class="form-control" id="screenshot-dir-input" value="Set directory" placeholder="Relative path">
+                    <button class="btn btn-default" type="button" id="browse-screenshot-dir">Browse…</button>
+                </div>
+                <small class="form-text text-muted">
+                    Specify where capture PNGs should be stored (will append date folder).
+                </small>
+            </div>
             </div>
 
             <!-- LDB Specific Fields -->
@@ -125,7 +135,22 @@
         const resetBtn = document.getElementById('reset-btn');
         const copyBtn = document.getElementById('copy-btn');
         const saveBtn = document.getElementById('save-btn');
+        const screenshotDirInput = document.getElementById('screenshot-dir-input');
+        const browseScreenshotBtn = document.getElementById('browse-screenshot-dir');
         
+        const openScreenshotDirDialog = () => {
+            ipcRenderer.invoke('choose-screenshot-dir').then(selected => {
+                if (selected && selected.length > 0) {
+                    screenshotDirInput.value = selected[0];
+                }
+            }).catch(err => {
+                console.error('Failed to open screenshot dialog', err);
+            });
+        };
+
+        browseScreenshotBtn.addEventListener('click', openScreenshotDirDialog);
+        screenshotDirInput.addEventListener('click', openScreenshotDirDialog);
+
         // Mode handling
         const modeRadios = document.getElementsByName('app-mode');
         const bcelFields = document.getElementById('bcel-fields');
@@ -218,7 +243,8 @@
                 deviceId: document.getElementById('device-id-input').value === 'Device ID will be auto-filled' ? null : document.getElementById('device-id-input').value,
                 mode: 'BCEL',
                 transferCsvPath: pendingArgs ? pendingArgs.transferCsvPath : null,
-                transferCsvContent: pendingArgs ? pendingArgs.transferCsvContent : null
+                transferCsvContent: pendingArgs ? pendingArgs.transferCsvContent : null,
+                screenshotDir: pendingArgs ? pendingArgs.screenshotDir : null
             };
 
             ipcRenderer.send('run-mutasi-bcel', args);
@@ -282,7 +308,8 @@
                                 isRunning = true;
                                 
                                 // Capture initial args (port etc) plus transfer info
-                                pendingArgs = { port, mode, transferCsvPath, transferCsvContent: transferCsvText }; 
+                                const screenshotDirValue = screenshotDirInput.value.trim();
+                                pendingArgs = { port, mode, transferCsvPath, transferCsvContent: transferCsvText, screenshotDir: screenshotDirValue || null }; 
 
                                 // UI State
                                 startBtn.textContent = `Stop ${mode}`;

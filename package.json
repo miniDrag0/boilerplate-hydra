@@ -45,6 +45,7 @@
     "appium": "^3.1.2",
     "appium-uiautomator2-driver": "^6.7.2",
     "dotenv": "^17.2.3",
+    "jimp": "^0.16.13",
     "wdio-electron-service": "^9.2.1",
     "wdio-slack-service": "^2.0.9"
   },

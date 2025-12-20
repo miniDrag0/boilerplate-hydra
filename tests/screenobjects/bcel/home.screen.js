@@ -4,6 +4,7 @@ const GestureUtil = require('../../helpers/Gestures');
 const LoginScreen = require('./login.screen');
 const fs = require('fs');
 const path = require('path');
+const Jimp = require('jimp');
 
 const SELECTORS = {
     ONECASH_LABEL: '//android.widget.TextView[@text="OneCash Wallet"]',
@@ -20,6 +21,7 @@ const SELECTORS = {
     ANSWER_2_TEXTFIELD: '//android.widget.EditText[@resource-id="ans2"]',
     ANSWER_3_TEXTFIELD: '//android.widget.EditText[@resource-id="ans3"]',
     DESCRIPTION_TEXTFIELD: '//android.widget.EditText[@resource-id="desc"]',
+    DONE_BUTTON: '//android.widget.TextView[@resource-id="done"]',
 
 };
 
@@ -69,6 +71,9 @@ class HomeScreen extends AppScreen {
     get tfDescription() {
         return $(SELECTORS.DESCRIPTION_TEXTFIELD);
     }
+    get btnDone() {
+        return $(SELECTORS.DONE_BUTTON);
+    }
 
 
     async clickLabelOneCash(){
@@ -105,7 +110,26 @@ class HomeScreen extends AppScreen {
         return numeric.toLocaleString('en-US');
     }
 
-    async verifyDisplayedAmount(expectedAmount, accountName = 'unknown'){
+    async verifyDisplayedAmount(expectedAmount, accountName){
+        const formatted = this.formatAmountForSelector(expectedAmount);
+        const expectedText = `${formatted} LAK`;
+        const selector = `(//android.widget.TextView[@text="${expectedText}"])[1]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({
+            timeout: 2000,
+            timeoutMsg: `Amount label "${expectedText}" did not appear`
+        });
+        const amountText = await element.getText();
+        if (amountText === expectedText) {
+            await ElementUtil.doClick(this.btnNext);
+        }
+        if (amountText !== expectedText) {
+            throw new Error(`Displayed amount "${amountText}" did not match expected "${expectedText}"`);
+        }
+        return true;
+    }
+
+    async verifyDisplayedMutationSuccess(expectedAmount, accountName){
         const formatted = this.formatAmountForSelector(expectedAmount);
         const expectedText = `${formatted} LAK`;
         const selector = `(//android.widget.TextView[@text="${expectedText}"])[1]`;
@@ -116,6 +140,9 @@ class HomeScreen extends AppScreen {
         });
         const amountText = await element.getText();
         await this.captureAmountScreenshot(accountName, amountText);
+        if (amountText === expectedText) {
+            await ElementUtil.doClick(this.btnDone);
+        }
         if (amountText !== expectedText) {
             throw new Error(`Displayed amount "${amountText}" did not match expected "${expectedText}"`);
         }
@@ -123,16 +150,32 @@ class HomeScreen extends AppScreen {
     }
 
     async captureAmountScreenshot(accountName, amountText){
-        const screenshotDir = path.join(process.cwd(), 'screenshots', 'amount-verify');
+        const dateFolder = this.getFormattedTimestamp().split('_')[0];
+        const baseDir = process.env.SCREENSHOT_BASE_DIR ? path.resolve(process.env.SCREENSHOT_BASE_DIR) : path.resolve(__dirname, '../../bcel/screenshots/mutasi');
+        const screenshotDir = path.join(baseDir, dateFolder);
         if (!fs.existsSync(screenshotDir)){
             fs.mkdirSync(screenshotDir, { recursive: true });
         }
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = this.getFormattedTimestamp();
         const safeAccount = String(accountName || 'unknown').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'');
         const fileName = `${timestamp}-${safeAccount}.png`;
         const filePath = path.join(screenshotDir, fileName);
         await driver.saveScreenshot(filePath);
+        try {
+            const image = await Jimp.read(filePath);
+            await image.resize(800, Jimp.AUTO).quality(60).writeAsync(filePath);
+        } catch (resizeErr) {
+            console.warn('Screenshot resize failed:', resizeErr);
+        }
         console.log(`Saved amount verification screenshot: ${filePath} (${amountText})`);
+    }
+
+    getFormattedTimestamp(){
+        const now = new Date();
+        const pad = (value) => String(value).padStart(2, '0');
+        const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const timePart = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+        return `${datePart}_${timePart}`;
     }
 
     async verifyRecipientNamePresent(name){

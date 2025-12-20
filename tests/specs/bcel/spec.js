@@ -73,6 +73,7 @@ describe('Feature BCEL', () => {
             await HomeScreen.enterAmount(transfer.amount);
             await HomeScreen.fillInformation(question1, question2, question3,"Fund out");
             await HomeScreen.verifyDisplayedAmount(transfer.amount, transfer.name);
+            await HomeScreen.verifyDisplayedMutationSuccess(transfer.amount, transfer.name);
             // add any additional steps (amount entry / confirmation) here
             console.log(`[DEBUG] Transfer #${transfer.no} (${transfer.account}) iteration done.`);
             
