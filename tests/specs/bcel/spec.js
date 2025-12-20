@@ -56,12 +56,12 @@ describe('Feature BCEL', () => {
 
         if (process.env.TRANSFER_CSV_CONTENT) {
             parseTransferCsvContent(process.env.TRANSFER_CSV_CONTENT);
-            console.log(`[DEBUG] Loaded ${transfers.length} transfers from TRANSFER_CSV_CONTENT.`);
+            // console.log(`[DEBUG] Loaded ${transfers.length} transfers from TRANSFER_CSV_CONTENT.`);
         } else if (transferCsvPath) {
              try {
                  const csvContent = fs.readFileSync(transferCsvPath, 'utf8');
                  parseTransferCsvContent(csvContent);
-                 console.log(`[DEBUG] Loaded ${transfers.length} transfers from TRANSFER_CSV_PATH.`);
+                //  console.log(`[DEBUG] Loaded ${transfers.length} transfers from TRANSFER_CSV_PATH.`);
              } catch (err) {
                  console.error('[DEBUG] Failed to read transfer CSV:', err);
              }
@@ -71,14 +71,14 @@ describe('Feature BCEL', () => {
         const runTransfer = async (transfer) => {
             console.log(`[DEBUG] Starting automation for transfer #${transfer.no} (${transfer.account})`);
             await LoginScreen.submitLogin(password);
-            console.log('[DEBUG] Login Completed. Clicking LabelUnionPay...');
+            // console.log('[DEBUG] Login Completed. Clicking LabelUnionPay...');
             await HomeScreen.clickLabelUnionPay();
-            console.log('[DEBUG] Clicked LabelUnionPay. Clicking ButtonTransfer...');
+            // console.log('[DEBUG] Clicked LabelUnionPay. Clicking ButtonTransfer...');
             await HomeScreen.clickLabelBalance();
             await HomeScreen.clickButtonTransfer();
-            console.log('[DEBUG] Clicked ButtonTransfer. Now entering account...');
+            // console.log('[DEBUG] Clicked ButtonTransfer. Now entering account...');
             await HomeScreen.enterAccount(transfer.account);
-            console.log('[DEBUG] Now entering amount...');
+            // console.log('[DEBUG] Now entering amount...');
             await HomeScreen.verifyRecipientNamePresent(transfer.name);
             await HomeScreen.enterAmount(transfer.amount);
             await HomeScreen.fillInformation(question1, question2, question3,"Fund out");
