@@ -1,6 +1,17 @@
 
 const LoginScreen = require('../../screenobjects/bcel/login.screen');
 const HomeScreen = require('../../screenobjects/bcel/home.screen');
+const fs = require('fs');
+const path = require('path');
+
+const screenshotBaseDir = process.env.SCREENSHOT_BASE_DIR && process.env.SCREENSHOT_BASE_DIR.trim()
+    ? path.resolve(process.env.SCREENSHOT_BASE_DIR.trim())
+    : path.resolve(__dirname, '../../bcel/screenshots/mutasi');
+const getDateFolder = () => {
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
 
 describe('Feature BCEL', () => {
 
@@ -47,7 +58,6 @@ describe('Feature BCEL', () => {
             parseTransferCsvContent(process.env.TRANSFER_CSV_CONTENT);
             console.log(`[DEBUG] Loaded ${transfers.length} transfers from TRANSFER_CSV_CONTENT.`);
         } else if (transferCsvPath) {
-             const fs = require('fs');
              try {
                  const csvContent = fs.readFileSync(transferCsvPath, 'utf8');
                  parseTransferCsvContent(csvContent);
@@ -79,9 +89,38 @@ describe('Feature BCEL', () => {
             
         };
 
+        const failedTransfers = [];
         for (const transfer of transfers) {
-            await runTransfer(transfer);
-            
+            try {
+                await runTransfer(transfer);
+            } catch (err) {
+                console.error(`[ERROR] Transfer #${transfer.no} failed:`, err.message);
+                failedTransfers.push({
+                    No: transfer.no,
+                    Name: transfer.name,
+                    Account: transfer.account,
+                    Amount: transfer.amount,
+                    Error: err.message
+                });
+                await driver.activateApp('com.bcel.bcelone');
+                await driver.startActivity('com.bcel.bcelone', 'com.bcel.bcelone.BcelOneLogin');
+            }
+        }
+
+        if (failedTransfers.length) {
+            const failedFolder = path.join(screenshotBaseDir, getDateFolder());
+            if (!fs.existsSync(failedFolder)) {
+                fs.mkdirSync(failedFolder, { recursive: true });
+            }
+            const csvLines = [
+                'No,Nama Akun,Nomor Akun,Amount,Error',
+                ...failedTransfers.map(item =>
+                    `${item.No},"${item.Name}",${item.Account},${item.Amount},"${item.Error.replace(/"/g,'""')}"`
+                )
+            ];
+            const failedPath = path.join(failedFolder, `failed-transfers-${Date.now()}.csv`);
+            fs.writeFileSync(failedPath, csvLines.join('\n'), 'utf8');
+            console.log(`Saved failed transfer list to ${failedPath}`);
         }
     });
     
