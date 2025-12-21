@@ -65,24 +65,18 @@ describe('Feature LDB', () => {
             console.log(`[DEBUG] Starting automation for transfer #${transfer.no} (${transfer.account})`);
             await LoginScreen.submitLogin(password);
             await HomeScreen.clickRemainingBalanceCard();
+            await HomeScreen.ensureSwitchEnabled();
+            const remainingBalance = await HomeScreen.getDynamicBalanceAfterSwitch();
+            console.log(`[DEBUG] Remaining balance: ${remainingBalance}`);
+            await HomeScreen.enterAccount(transfer.account);
+            await HomeScreen.verifyRecipientCardVisible(transfer.name);
             // console.log(await HomeScreen.getRemainingBalanceAmount());
             // await HomeScreen.clickButtonTransfer();
             // // console.log('[DEBUG] Clicked ButtonTransfer. Now entering account...');
             // await HomeScreen.enterAccount(transfer.account);
             // // console.log('[DEBUG] Now entering amount...');
-            // await HomeScreen.verifyRecipientNamePresent(transfer.name);
-            // await HomeScreen.enterAmount(transfer.amount);
-            // await HomeScreen.fillInformation(question1, question2, question3,"Fund out");
-            // await HomeScreen.verifyDisplayedAmount(transfer.amount, transfer.name);
-            // await HomeScreen.verifyDisplayedMutationSuccess(transfer.amount, transfer.name);
-            // // add any additional steps (amount entry / confirmation) here
-            // console.log(`[DEBUG] Transfer #${transfer.no} (${transfer.account}) iteration done.`);
             
-        };
-
-        const failedTransfers = [];
-        for (const transfer of transfers) {
-            try {
+            
                 await runTransfer(transfer);
             } catch (err) {
                 console.error(`[ERROR] Transfer #${transfer.no} failed:`, err.message);
