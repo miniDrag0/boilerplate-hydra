@@ -7,51 +7,43 @@ const path = require('path');
 const Jimp = require('jimp');
 
 const SELECTORS = {
-    ONECASH_LABEL: '//android.widget.TextView[@text="OneCash Wallet"]',
-    UNIONPAY_LABEL: '//android.widget.TextView[@text="UnionPay Chip Gold"]',
-    TRANSFER_BUTTON: '//android.widget.TextView[@text="Transfer"]',
-    SHOW_BALANCE_BUTTON: '//android.widget.TextView[@resource-id="show-balance-button"]',
-    BALANCE_LABEL: '//android.widget.TextView[@resource-id="balance-list"]',
+    REMAINING_BALANCE_CARD: '//android.view.View[contains(translate(@content-desc,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ"),"REMAINING BALANCE")]',
+    ACCOUNT_SWITCH: '//android.widget.Switch',
+    BALANCE_BADGE: '//android.widget.ImageView[contains(@content-desc,"LAK") and contains(@content-desc,"₭")]',
+    BACK_BUTTON: '//android.widget.Button[@content-desc="Back"]',
+    TRANSFER_BUTTON: '//android.widget.ImageView[@content-desc="Transfer"]',
     ACCOUNT_TEXTFIELD: '//android.widget.EditText',
-    NEXT_BUTTON: '//android.widget.TextView[@resource-id="next"]',
-    AMOUNT_TEXTFIELD: '//android.widget.EditText[@resource-id="amount"]',
-    AMOUNT_LABEL: '(//android.widget.TextView[contains(@text,"LAK")])[1]',
-    QUESTION_1_LABEL: '//android.widget.TextView[@text="Question 1"]',
-    ANSWER_1_TEXTFIELD: '//android.widget.EditText[@resource-id="ans1"]',
-    ANSWER_2_TEXTFIELD: '//android.widget.EditText[@resource-id="ans2"]',
-    ANSWER_3_TEXTFIELD: '//android.widget.EditText[@resource-id="ans3"]',
-    DESCRIPTION_TEXTFIELD: '//android.widget.EditText[@resource-id="desc"]',
-    DONE_BUTTON: '//android.widget.TextView[@resource-id="done"]',
-    REMAINING_BALANCE_CARD: '//android.widget.ImageView[@content-desc="Points"]/preceding-sibling::',
-
+    NEXT_BUTTON: '//android.view.View[@content-desc="Next"]',
     
-
+    AMOUNT_TEXTFIELD: '//android.widget.EditText[1]',
+    
+    DESCRIPTION_TEXTFIELD: '//android.widget.EditText[3]',
+    DONE_BUTTON: '(//android.view.View[@content-desc="Confirm"])[2]',
+    HOME_BUTTON: '//android.view.View[@content-desc="Home"]',
 };
 
 class HomeScreen extends AppScreen {
     constructor () {
         super(SELECTORS.HOME_SCREEN);
     }
-    get lblOneCash() {
-        return $(SELECTORS.ONECASH_LABEL);
+   
+    get remainingBalanceCard() {
+        return $(SELECTORS.REMAINING_BALANCE_CARD);
     }
-    get lblUnionPay() {
-        return $(SELECTORS.UNIONPAY_LABEL);
+    get accountSwitch() {
+        return $(SELECTORS.ACCOUNT_SWITCH);
     }
-    get lblBalance() {
-        return $(SELECTORS.BALANCE_LABEL);
+    get balanceBadge() {
+        return $(SELECTORS.BALANCE_BADGE);
+    }
+    get btnBack() {
+        return $(SELECTORS.BACK_BUTTON);
     }
     get btnTransfer() {
         return $(SELECTORS.TRANSFER_BUTTON);
     }
-    get btnShowBalance() {
-        return $(SELECTORS.SHOW_BALANCE_BUTTON);
-    }
     get tfAccount() {
         return $(SELECTORS.ACCOUNT_TEXTFIELD);
-    }
-    get remainingBalanceCard() {
-        return $(SELECTORS.REMAINING_BALANCE_CARD);
     }
     get btnNext() {
         return $(SELECTORS.NEXT_BUTTON);
@@ -59,49 +51,33 @@ class HomeScreen extends AppScreen {
     get tfAmount() {
         return $(SELECTORS.AMOUNT_TEXTFIELD);
     }
-    get lblAmount() {
-        return $(SELECTORS.AMOUNT_LABEL);
-    }
-    get lblQuestion1() {
-        return $(SELECTORS.QUESTION_1_LABEL);
-    }
-    get tfAnswer1() {
-        return $(SELECTORS.ANSWER_1_TEXTFIELD);
-    }
-    get tfAnswer2() {
-        return $(SELECTORS.ANSWER_2_TEXTFIELD);
-    }
-    get tfAnswer3() {
-        return $(SELECTORS.ANSWER_3_TEXTFIELD);
-    }
     get tfDescription() {
         return $(SELECTORS.DESCRIPTION_TEXTFIELD);
     }
     get btnDone() {
         return $(SELECTORS.DONE_BUTTON);
     }
+    get btnHome() {
+        return $(SELECTORS.HOME_BUTTON);
+    }
+    
 
 
-    async clickLabelOneCash(){
-        await ElementUtil.doClick(this.lblOneCash);
-    }
-    async clickLabelUnionPay(){
-        await ElementUtil.doClick(this.lblUnionPay);
-    }
 
-    async clickButtonTransfer(){
-        await ElementUtil.doClick(this.btnTransfer);
-    }
-
-    async clickLabelBalance(){
-        await ElementUtil.doClick(this.btnShowBalance);
-        console.log(await this.lblBalance.getText());
-    }
 
     async clickRemainingBalanceCard(){
         const card = await this.remainingBalanceCard;
         await ElementUtil.doClick(card);
     }
+
+    async ensureSwitchEnabled(){
+        const toggle = await this.accountSwitch;
+        const checked = await toggle.getAttribute('checked');
+        if (checked === 'false' || checked === null) {
+            await ElementUtil.doClick(toggle);
+        }
+    }
+
 
     async getRemainingBalanceAmount(){
         const card = await this.remainingBalanceCard;
@@ -117,16 +93,40 @@ class HomeScreen extends AppScreen {
         if (!match) {
             throw new Error(`Remaining balance could not be extracted from "${desc}"`);
         }
+        
         return match[1];
     }
 
+    async getDynamicBalanceAfterSwitch(){
+        await this.ensureSwitchEnabled();
+        const badge = await this.balanceBadge;
+        await badge.waitForDisplayed({
+            timeout: 5000,
+            timeoutMsg: 'Balance badge did not appear',
+        });
+        const desc = await badge.getAttribute('content-desc');
+        if (!desc) {
+            throw new Error('Balance badge has no content-desc');
+        }
+        const match = desc.match(/₭\s*([\d,]+(?:\.\d+)?)/);
+        if (!match) {
+            throw new Error(`Unable to parse balance from "${desc}"`);
+        }
+        await driver.back();
+        return `₭ ${match[1]}`;
+    }
+
     async enterAccount(account){
+        await ElementUtil.doClick(this.btnTransfer);
+        await ElementUtil.doClick(this.tfAccount);
         await ElementUtil.doSetValue(this.tfAccount, account);
         await ElementUtil.doClick(this.btnNext);
     }
 
-    async enterAmount(amount){
+    async enterAmountDescription(amount, description){
         await ElementUtil.doSetValue(this.tfAmount, amount);
+        await ElementUtil.doClick(this.btnNext);
+        await ElementUtil.doSetValue(this.tfDescription, description);
         await ElementUtil.doClick(this.btnNext);
     }
 
@@ -215,150 +215,55 @@ class HomeScreen extends AppScreen {
         return true;
     }
 
-    async fillInformation(answer1, answer2, answer3, description){
-        let questionVisible = false;
-        try {
-            questionVisible = await this.lblQuestion1.isDisplayed();
-        } catch (err) {
-            questionVisible = false;
+    async verifyRecipientCardVisible(name){
+        if (!name) throw new Error('Name must be provided for recipient verification');
+        const upperName = name.toUpperCase().replace(/"/g,'').replace(/'/g,'');
+        const selector = `//android.widget.ImageView[contains(translate(@content-desc,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),"${upperName}")]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({ timeout: 5000 });
+        return true;
+    }
+
+    formatAmountBadge(amount){
+        const numeric = Number(amount);
+        if (Number.isNaN(numeric)) {
+            throw new Error(`Amount "${amount}" is not numeric`);
         }
-        if(questionVisible){
-            await ElementUtil.doSetValue(this.tfAnswer1, answer1);
-            await ElementUtil.doClick(this.btnNext);
-            await ElementUtil.doSetValue(this.tfAnswer2, answer2);
-            await ElementUtil.doClick(this.btnNext);
-            await ElementUtil.doSetValue(this.tfAnswer3, answer3);
-            await ElementUtil.doClick(this.btnNext);
-            await ElementUtil.doSetValue(this.tfDescription, description);
-            await ElementUtil.doClick(this.btnNext);
-        }else{
-            await ElementUtil.doSetValue(this.tfDescription, description);
-            await ElementUtil.doClick(this.btnNext);
-        }
+        return numeric.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
 
-
-
-
-
-    clickButtonHistory(access_pass){
-        try {
-            if (LoginScreen.btnLogin.isDisplayed()){
-                LoginScreen.submitLogin(access_pass)
-            }
-            let maxAttempts = 10;
-            while (maxAttempts > 0) {
-                GestureUtil.swipeUp(0.2);
-                if (this.cardView.isDisplayed()) {
-                    ElementUtil.doClick(this.cardView);
-                    return;
-                }
-                maxAttempts--;
-            }
-            // Jika maxAttempts mencapai 0 dan cardView belum ditemukan, restart aplikasi
-            if (maxAttempts === 0) {
-                console.warn('Max attempts reached. Restarting the app...');
-                ElementUtil.doClick(this.btnNavScroll);
-                ElementUtil.doClick(this.cardView);
-            }
-        } catch (error) {
-            console.error('Error parsing Element:', error);
-            driver.launchApp();
-        }
-        
+    async verifyRecipientAndAmount(name, amount){
+        if (!name) throw new Error('Recipient name is required');
+        if (amount === undefined || amount === null) throw new Error('Amount is required');
+        const formattedAmount = this.formatAmountBadge(amount);
+        const upperName = name.toUpperCase().replace(/"/g,'').replace(/'/g,'');
+        const selector = `//android.view.View[contains(translate(@content-desc,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),"${upperName}")]/following-sibling::android.view.View[contains(@content-desc,"₭ ${formattedAmount}")]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({
+            timeout: 5000,
+            timeoutMsg: `Recipient card for "${name}" with amount "₭ ${formattedAmount}" did not appear`
+        });
+        await ElementUtil.doClick(this.btnDone);
+        return true;
     }
 
-    clickButtonHistoryV2(access_pass){
-        try {
-            if (LoginScreen.btnLogin.isDisplayed()){
-                LoginScreen.submitLogin(access_pass)
-            }
-        
-            ElementUtil.doClick(this.btnViewBalance);
-        } catch (error) {
-            console.error('Error parsing Element:', error);
-            driver.launchApp();
-        }
-        
-    }
-
-    clickButtonSaldo() {
-        let maxAttempts = 10;
-        while (maxAttempts > 0) {
-            GestureUtil.swipeUp(0.2);
-            if (this.btnSaldo.isDisplayed()) {
-                ElementUtil.doClick(this.btnSaldo);
-                return;
-            }
-            maxAttempts--;
-        }
-        console.log("Tombol saldo tidak ditemukan setelah 10 kali swipe up.");
-    }
-
-    clickLabelSaldo(){
-        // this.clickButtonSaldo();
-        let balance = "";
-        try {
-            GestureUtil.swipeUp(0.2);
-            if(!this.lblBalance.isDisplayed()){
-                this.clickButtonSaldo();   
-            }
-            balance = this.removePunctuation(this.lblBalance.getText());    
-            // balance = this.removePunctuation(this.lblBalance.getText());
-        } catch (error) {
-            console.error('Gagal mendapatkan teks atau mengklik elemen:', error);
-        }
-        
-        return balance;
-    }
-
-    clickLabelSaldoV2(){
-        let balance = "";
-        try {
-            if(this.lblBalanceView.getText().includes('*')){
-                ElementUtil.doClick(this.btnShowHideBalance);  
-            }
-            balance = this.removePunctuation(this.lblBalanceView.getText());    
-        } catch (error) {
-            console.error('Gagal mendapatkan teks atau mengklik elemen:', error);
-        }
-        
-        return balance;
-    }
-
-    removePunctuation(input) {
-        // Hapus semua karakter selain angka
-        let cleanNumber = input.replace(/\D/g, '');
-
-        let withoutRp = cleanNumber.replace(/^Rp\s*/, '');
-        let numberWithoutLastTwoDigits = withoutRp.slice(0, -2);
-        return numberWithoutLastTwoDigits;
-
-    }
-
-    clickButtonBayar(){
-        ElementUtil.doClick(this.btnBayar);
-    }
-
-    clickButtonTransferRupiah(){
-        ElementUtil.doClick(this.btnTransfer);
-    }
-
-    // VA transfer flow (kept separate to avoid overriding the main transfer button click)
-    clickButtonTransferVA(VANumber){
-        if (!this.tfVA || !this.listVA || this.listVA.length === 0) {
-            throw new Error('VA transfer elements not defined on HomeScreen');
-        }
-        ElementUtil.doClick(this.tfVA);
-        this.tfVA.setValue(VANumber.substring(0, 5));
-        GestureUtil.swipeUp(1)
-        GestureUtil.swipeUp(1)
-        GestureUtil.swipeUp(1)
-        GestureUtil.swipeUp(1)
-        GestureUtil.swipeUp(1)
-        GestureUtil.swipeUp(1)
-        GestureUtil.swipeUp(1)
-        ElementUtil.doClick(this.listVA[0]);
+    async verifyAmountAndCapture(amount, accountName){
+        if (amount === undefined || amount === null) throw new Error('Amount is required');
+        const formattedAmount = this.formatAmountBadge(amount);
+        const selector = `//android.view.View[contains(@content-desc,"₭ ${formattedAmount}")]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({
+            timeout: 5000,
+            timeoutMsg: `Amount "₭ ${formattedAmount}" did not appear`
+        });
+        const desc = await element.getAttribute('content-desc');
+        const screenshotRef = desc || `₭ ${formattedAmount}`;
+        await this.captureAmountScreenshot(accountName, screenshotRef);
+        await ElementUtil.doClick(this.btnHome);
+        return true;
     }
     
 }

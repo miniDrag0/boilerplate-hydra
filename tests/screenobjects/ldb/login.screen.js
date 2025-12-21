@@ -48,6 +48,18 @@ class LoginScreen extends AppScreen {
        
     }
 
+    async loginIfNeeded(password){
+        let loginVisible = false;
+        try {
+            loginVisible = await this.btnLogin.isDisplayed();
+        } catch (err) {
+            loginVisible = false;
+        }
+        if (loginVisible) {
+            await this.submitLogin(password);
+        }
+    }
+
     async inputPin(pin) {
         const digits = String(pin).split('');
 
