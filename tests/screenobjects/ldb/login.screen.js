@@ -20,27 +20,32 @@ class LoginScreen extends AppScreen {
     }
 
     async clickButtonLogin(){
-        await driver.pause(500);
         await this.btnLogin.click();
-        await driver.pause(1000);
     }
 
 
-    async submitLogin(password){
+    async dismissDontShowAgain(){
         try {
+            await this.btnDontShowAgain.waitForDisplayed({ timeout: 1000 });
             await this.btnDontShowAgain.click();
         } catch (error) {
-            // ignore
+            // ignore if not present
         }
-        if (!await this.btnLogin.isDisplayed()){
-            // Updated deprecated launchApp to activateApp
-            await driver.execute('mobile: activateApp', { appId: 'com.ldb.wallet' });
-            await driver.pause(1000);
-        }
-    
-        await clickButtonLogin();
-        await this.inputPin(password);
+    }
 
+    async ensureAppActive(){
+        if (!await this.btnLogin.isDisplayed()){
+            await driver.execute('mobile: activateApp', { appId: 'com.ldb.wallet' });
+        }
+        await this.btnLogin.waitForDisplayed({ timeout: 1000 });
+    }
+
+    async submitLogin(password){
+        await this.dismissDontShowAgain();
+        await this.ensureAppActive();
+        await this.clickButtonLogin();
+        await this.inputPin(password);
+       
     }
 
     async inputPin(pin) {

@@ -3,6 +3,12 @@ const path = require('path')
 const { exec, execSync } = require('child_process');
 const fs = require('fs');
 
+// Prevent GPU disk cache errors and ensure we can run without accelerated graphics.
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-accelerated-video-decode');
+
 function createWindow () {
   const win = new BrowserWindow({
     width: 1200,
@@ -112,10 +118,16 @@ const runMutasiBcel = (event, args) => {
 
   console.log(`Received run-mutasi-bcel command. Mode: ${mode}, Port: ${port}`);
   
+  const configs = {
+    BCEL: 'wdio.mutasi.bcel.conf.js',
+    LDB: 'wdio.mutasi.ldb.conf.js'
+  };
+  const modeConfig = configs[mode] || configs.BCEL;
+
   // Use local wdio binary to avoid npm script resolution issues
   // We target the JS file directly to avoid .bin shim issues in packaged environment
   const wdioPath = path.join(__dirname, 'node_modules', '@wdio', 'cli', 'bin', 'wdio.js');
-  const configPath = path.join(__dirname, 'config', 'wdio.mutasi.bcel.conf.js');
+  const configPath = path.join(__dirname, 'config', modeConfig);
   
   let command;
   if (fs.existsSync(wdioPath)) {

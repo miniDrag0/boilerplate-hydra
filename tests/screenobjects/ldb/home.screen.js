@@ -22,6 +22,9 @@ const SELECTORS = {
     ANSWER_3_TEXTFIELD: '//android.widget.EditText[@resource-id="ans3"]',
     DESCRIPTION_TEXTFIELD: '//android.widget.EditText[@resource-id="desc"]',
     DONE_BUTTON: '//android.widget.TextView[@resource-id="done"]',
+    REMAINING_BALANCE_CARD: '//android.widget.ImageView[@content-desc="Points"]/preceding-sibling::',
+
+    
 
 };
 
@@ -46,6 +49,9 @@ class HomeScreen extends AppScreen {
     }
     get tfAccount() {
         return $(SELECTORS.ACCOUNT_TEXTFIELD);
+    }
+    get remainingBalanceCard() {
+        return $(SELECTORS.REMAINING_BALANCE_CARD);
     }
     get btnNext() {
         return $(SELECTORS.NEXT_BUTTON);
@@ -90,6 +96,28 @@ class HomeScreen extends AppScreen {
     async clickLabelBalance(){
         await ElementUtil.doClick(this.btnShowBalance);
         console.log(await this.lblBalance.getText());
+    }
+
+    async clickRemainingBalanceCard(){
+        const card = await this.remainingBalanceCard;
+        await ElementUtil.doClick(card);
+    }
+
+    async getRemainingBalanceAmount(){
+        const card = await this.remainingBalanceCard;
+        await card.waitForDisplayed({
+            timeout: 5000,
+            timeoutMsg: 'Remaining balance card never appeared',
+        });
+        const desc = await card.getAttribute('content-desc');
+        if (!desc) {
+            throw new Error('Remaining balance card has no content-desc');
+        }
+        const match = desc.match(/₭\s*([\d,]+(?:\.\d+)?)/);
+        if (!match) {
+            throw new Error(`Remaining balance could not be extracted from "${desc}"`);
+        }
+        return match[1];
     }
 
     async enterAccount(account){

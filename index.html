@@ -69,28 +69,35 @@
                         Format: No, Nama Akun, Nomor Akun, Amount
                     </small>
                 </div>
-            <div class="form-group">
-                <label>Screenshot/CSV Mutasi Directory:</label>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" class="form-control" id="screenshot-dir-input" value="Set directory" placeholder="Relative path">
-                    <button class="btn btn-default" type="button" id="browse-screenshot-dir">Browse…</button>
+                <div id="screenshot-section">
+                    <div class="form-group">
+                        <label>Screenshot/CSV Mutasi Directory:</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" class="form-control" id="screenshot-dir-input" value="Set directory" placeholder="Relative path">
+                            <button class="btn btn-default" type="button" id="browse-screenshot-dir">Browse…</button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Specify where capture PNGs should be stored (will append date folder).
+                        </small>
+                    </div>
                 </div>
-                <small class="form-text text-muted">
-                    Specify where capture PNGs should be stored (will append date folder).
-                </small>
-            </div>
             </div>
 
             <!-- LDB Specific Fields -->
             <div id="ldb-fields" style="display: none;">
                 <div class="form-group">
-                    <label>Password:</label>
-                    <div style="position: relative;">
-                        <input type="password" class="form-control" id="ldb-password" placeholder="Enter Password" style="padding-right: 40px;">
-                        <button type="button" id="toggle-ldb-password" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: none; background: none; cursor: pointer;">
-                            👁️
-                        </button>
-                    </div>
+                    <label>Upload CSV Account Data (Login):</label>
+                    <input type="file" class="form-control" id="ldb-credentials-csv" accept=".csv">
+                    <small class="form-text text-muted">
+                        Format: Password, MotherBirthday, HouseNumber, PhoneFirst
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Upload CSV Transfer List:</label>
+                    <input type="file" class="form-control" id="ldb-transfer-csv" accept=".csv">
+                    <small class="form-text text-muted">
+                        Format: No, Nama Akun, Nomor Akun, Amount
+                    </small>
                 </div>
             </div>
         </div>
@@ -155,39 +162,51 @@
         const modeRadios = document.getElementsByName('app-mode');
         const bcelFields = document.getElementById('bcel-fields');
         const ldbFields = document.getElementById('ldb-fields');
+        const screenshotSection = document.getElementById('screenshot-section');
+        let batchQueue = [];
+        let isBatchRunning = false;
+        let isRunning = false;
+        let pendingArgs = null; // Store all args during device selection
+
+        const moveScreenshotSection = (mode) => {
+            if (!screenshotSection) return;
+            const target = mode === 'BCEL' ? bcelFields : ldbFields;
+            target.appendChild(screenshotSection);
+        };
+
+        const updateModeUI = () => {
+            const mode = getSelectedMode();
+            const showBcel = mode === 'BCEL';
+            bcelFields.style.display = showBcel ? 'block' : 'none';
+            ldbFields.style.display = showBcel ? 'none' : 'block';
+            moveScreenshotSection(mode);
+            if (!isRunning) {
+                startBtn.textContent = `Start ${mode}`;
+            }
+        };
+
+        Array.from(modeRadios).forEach(radio => {
+            radio.addEventListener('change', updateModeUI);
+        });
+        updateModeUI();
         
-        // Password Toggle Logic
-        function setupPasswordToggle(inputId, toggleId) {
-            const input = document.getElementById(inputId);
-            if (!input) return; // Guard in case element is missing (like bcel-password now)
-            const toggle = document.getElementById(toggleId);
-            
-            toggle.addEventListener('click', () => {
-                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
-                input.setAttribute('type', type);
-                toggle.textContent = type === 'password' ? '👁️' : '🔒';
-            });
-        }
-
-        // setupPasswordToggle('bcel-password', 'toggle-bcel-password'); // Removed as bcel-password input is gone
-        setupPasswordToggle('ldb-password', 'toggle-ldb-password');
-
         function getSelectedMode() {
             return document.querySelector('input[name="app-mode"]:checked').value;
         }
 
         // CSV Parser
-        function parseCSV(text) {
+        function parseCSV(text, fields = ['passwordApp', 'motherBirthday', 'houseNumber', 'phoneFirst'], minParts = fields.length, options = {}) {
             const lines = text.trim().split(/\r?\n/);
             if (lines.length < 1) return [];
             
             const data = [];
             let startIndex = 0;
             
-            // Check for header
             if (lines[0]) {
                 const firstLine = lines[0].toLowerCase();
-                if (firstLine.includes('password') || firstLine.includes('mother')) {
+                const forcedSkip = options.skipHeader === true;
+                const autoSkip = firstLine.includes('password') || firstLine.includes('mother');
+                if (forcedSkip || autoSkip) {
                     startIndex = 1; // Skip header
                 }
             }
@@ -196,36 +215,35 @@
                 const line = lines[i].trim();
                 if (!line) continue;
                 
-                // Detect delimiter
                 const delimiter = line.includes(';') ? ';' : ',';
                 const parts = line.split(delimiter).map(p => p.trim());
                 
-                if (parts.length >= 4) {
-                    data.push({
-                        passwordApp: parts[0],
-                        motherBirthday: parts[1],
-                        houseNumber: parts[2],
-                        phoneFirst: parts[3]
-                    });
+                if (parts.length >= minParts) {
+                    const entry = {};
+                    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+                        entry[fields[fieldIndex]] = parts[fieldIndex] || '';
+                    }
+                    data.push(entry);
                 }
             }
             return data;
         }
 
-        let batchQueue = [];
-        let isBatchRunning = false;
-        let isRunning = false;
-        let pendingArgs = null; // Store all args during device selection
+        const finishRun = () => {
+            isBatchRunning = false;
+            isRunning = false;
+            pendingArgs = null;
+            startBtn.classList.remove('btn-logout');
+            startBtn.classList.add('btn-pill');
+            startBtn.disabled = false;
+            updateModeUI();
+        };
 
         function processNextInBatch() {
             if (batchQueue.length === 0) {
                 const logArea = document.querySelector('.log-area');
                 logArea.innerHTML += `<div>Batch processing finished.</div>`;
-                isBatchRunning = false;
-                startBtn.textContent = 'Start BCEL';
-                startBtn.classList.remove('btn-logout');
-                startBtn.classList.add('btn-pill');
-                startBtn.disabled = false;
+                finishRun();
                 return;
             }
 
@@ -233,15 +251,13 @@
             const logArea = document.querySelector('.log-area');
             logArea.innerHTML += `<div>Starting batch item... (Queue: ${batchQueue.length} remaining)</div>`;
 
-            // Merge with global args (port, deviceId)
-            // We need to retrieve the original port/deviceId from when Start was clicked.
-            // Let's store them in a global context or pass them.
-            
+            const currentMode = pendingArgs && pendingArgs.mode ? pendingArgs.mode : 'BCEL';
+
             const args = { 
                 ...currentData,
                 port: pendingArgs ? pendingArgs.port : document.getElementById('port-input').value.trim(),
                 deviceId: document.getElementById('device-id-input').value === 'Device ID will be auto-filled' ? null : document.getElementById('device-id-input').value,
-                mode: 'BCEL',
+                mode: currentMode,
                 transferCsvPath: pendingArgs ? pendingArgs.transferCsvPath : null,
                 transferCsvContent: pendingArgs ? pendingArgs.transferCsvContent : null,
                 screenshotDir: pendingArgs ? pendingArgs.screenshotDir : null
@@ -269,7 +285,6 @@
                 if (!isRunning) {
                     console.log(`Attempting to start in ${mode} mode`);
                     
-                    // Validation Logic
                     if (mode === 'BCEL') {
                         const csvInput = document.getElementById('bcel-csv');
                         const transferCsvInput = document.getElementById('bcel-transfer-csv');
@@ -302,14 +317,11 @@
                                 const logAreaRef = document.querySelector('.log-area'); // Re-select to be safe
                                 logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
                                 
-                                // Initialize Batch
+                                const screenshotDirValue = screenshotDirInput.value.trim();
+                                pendingArgs = { port, mode, transferCsvPath, transferCsvContent: transferCsvText, screenshotDir: screenshotDirValue || null }; 
                                 batchQueue = data;
                                 isBatchRunning = true;
                                 isRunning = true;
-                                
-                                // Capture initial args (port etc) plus transfer info
-                                const screenshotDirValue = screenshotDirInput.value.trim();
-                                pendingArgs = { port, mode, transferCsvPath, transferCsvContent: transferCsvText, screenshotDir: screenshotDirValue || null }; 
 
                                 // UI State
                                 startBtn.textContent = `Stop ${mode}`;
@@ -326,54 +338,79 @@
                             alert('Error reading CSV files.');
                         });
                         return;
-
-                    } else {
-                        // LDB Logic (unchanged)
-                        const pass = document.getElementById('ldb-password').value.trim();
-                        if (!pass) {
-                            alert('Password is mandatory for LDB mode.');
-                            return;
-                        }
-                        
-                        // Start logic for LDB
-                        console.log(`Start ${mode} button clicked`);
-                        
-                        let message = `Starting ${mode}...`;
-                        if (port) {
-                            message += ` (Port: ${port})`;
-                        }
-                        logArea.innerHTML += `<div>${message}</div>`;
-                        
-                        const args = { 
-                            port, 
-                            mode,
-                            password: pass
-                        };
-
-                        ipcRenderer.send('run-mutasi-bcel', args);
-
-                        // Change UI to Stop state
-                        isRunning = true;
-                        startBtn.textContent = `Stop ${mode}`;
-                        startBtn.classList.remove('btn-pill');
-                        startBtn.classList.add('btn-logout');
                     }
 
-                } else {
-                    // Stop logic
-                    console.log(`Stop ${mode} button clicked`);
-                    logArea.innerHTML += `<div>Stopping ${mode}...</div>`;
-                    
-                    // If batch running, clear queue
-                    if (isBatchRunning) {
-                        batchQueue = [];
-                        isBatchRunning = false;
-                        logArea.innerHTML += `<div>Batch cancelled.</div>`;
+                    // LDB Logic
+                    const credentialsInput = document.getElementById('ldb-credentials-csv');
+                    const transferCsvInput = document.getElementById('ldb-transfer-csv');
+                    if (!credentialsInput.files.length) {
+                        alert('Please upload the Account Data CSV file.');
+                        return;
+                    }
+                    if (!transferCsvInput.files.length) {
+                        alert('Please upload the Transfer List CSV file.');
+                        return;
                     }
 
-                    ipcRenderer.send('stop-mutasi-bcel');
-                    startBtn.disabled = true; // Prevent double clicks while stopping
+                    const csvFile = credentialsInput.files[0];
+                    const transferFile = transferCsvInput.files[0];
+                    const transferCsvPath = transferFile.path;
+
+                    Promise.all([
+                        readFileAsync(csvFile),
+                        readFileAsync(transferFile)
+                    ]).then(([credentialsCsvText, transferCsvText]) => {
+                        try {
+                            const data = parseCSV(credentialsCsvText, ['passwordApp'], 1, { skipHeader: true });
+                            if (data.length === 0) {
+                                alert('No valid data found in CSV. Please ensure format: Password, MotherBirthday, HouseNumber, PhoneFirst');
+                                return;
+                            }
+
+                            const logAreaRef = document.querySelector('.log-area');
+                            logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
+
+                            const screenshotDirValue = screenshotDirInput.value.trim();
+                            pendingArgs = { 
+                                port, 
+                                mode, 
+                                transferCsvPath, 
+                                transferCsvContent: transferCsvText, 
+                                screenshotDir: screenshotDirValue || null
+                            };
+
+                            batchQueue = data;
+                            isBatchRunning = true;
+                            isRunning = true;
+
+                            startBtn.textContent = `Stop ${mode}`;
+                            startBtn.classList.remove('btn-pill');
+                            startBtn.classList.add('btn-logout');
+
+                            processNextInBatch();
+                        } catch (err) {
+                            console.error('Error processing CSV:', err);
+                            alert('Error processing CSV: ' + err.message);
+                        }
+                    }).catch(err => {
+                        console.error('Error reading files:', err);
+                        alert('Error reading CSV files.');
+                    });
+                    return;
                 }
+
+                // Stop logic
+                console.log(`Stop ${mode} button clicked`);
+                logArea.innerHTML += `<div>Stopping ${mode}...</div>`;
+                
+                if (isBatchRunning) {
+                    batchQueue = [];
+                    isBatchRunning = false;
+                    logArea.innerHTML += `<div>Batch cancelled.</div>`;
+                }
+
+                ipcRenderer.send('stop-mutasi-bcel');
+                startBtn.disabled = true; // Prevent double clicks while stopping
             } catch (err) {
                 console.error('Error in start button handler:', err);
                 alert('An error occurred: ' + err.message);
@@ -391,12 +428,7 @@
                  return;
              }
 
-             isRunning = false;
-             const mode = getSelectedMode();
-             startBtn.textContent = `Start ${mode}`;
-             startBtn.classList.remove('btn-logout');
-             startBtn.classList.add('btn-pill');
-             startBtn.disabled = false;
+             finishRun();
         });
 
         ipcRenderer.on('device-info-update', (event, info) => {
