@@ -94,6 +94,7 @@ describe('Feature LDB', () => {
                     Amount: transfer.amount,
                     Error: err.message
                 });
+            } finally {
                 await driver.activateApp('com.ldb.wallet');
                 await driver.startActivity('com.ldb.wallet', 'com.ldb.wallet.MainActivity');
             }

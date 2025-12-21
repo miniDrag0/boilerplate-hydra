@@ -112,7 +112,7 @@ class HomeScreen extends AppScreen {
         if (!match) {
             throw new Error(`Unable to parse balance from "${desc}"`);
         }
-        await ElementUtil.doClick(this.btnBack);
+        await driver.back();
         return `₭ ${match[1]}`;
     }
 
@@ -265,36 +265,6 @@ class HomeScreen extends AppScreen {
         await ElementUtil.doClick(this.btnHome);
         return true;
     }
-
-    async fillInformation(answer1, answer2, answer3, description){
-        let questionVisible = false;
-        try {
-            questionVisible = await this.lblQuestion1.isDisplayed();
-        } catch (err) {
-            questionVisible = false;
-        }
-        if(questionVisible){
-            await ElementUtil.doSetValue(this.tfAnswer1, answer1);
-            await ElementUtil.doClick(this.btnNext);
-            await ElementUtil.doSetValue(this.tfAnswer2, answer2);
-            await ElementUtil.doClick(this.btnNext);
-            await ElementUtil.doSetValue(this.tfAnswer3, answer3);
-            await ElementUtil.doClick(this.btnNext);
-            await ElementUtil.doSetValue(this.tfDescription, description);
-            await ElementUtil.doClick(this.btnNext);
-        }else{
-            await ElementUtil.doSetValue(this.tfDescription, description);
-            await ElementUtil.doClick(this.btnNext);
-        }
-    }
-
-
-
-
-
-
-
-
     
 }
 
