@@ -13,8 +13,13 @@ const SELECTORS = {
     BACK_BUTTON: '//android.widget.Button[@content-desc="Back"]',
     TRANSFER_BUTTON: '//android.widget.ImageView[@content-desc="Transfer"]',
     ACCOUNT_TEXTFIELD: '//android.widget.EditText',
-    NEXT_BUTTON: '//android.widget.Button[@content-desc="Next"]',
+    NEXT_BUTTON: '//android.view.View[@content-desc="Next"]',
     
+    AMOUNT_TEXTFIELD: '//android.widget.EditText[1]',
+    
+    DESCRIPTION_TEXTFIELD: '//android.widget.EditText[3]',
+    DONE_BUTTON: '(//android.view.View[@content-desc="Confirm"])[2]',
+    HOME_BUTTON: '//android.view.View[@content-desc="Home"]',
 };
 
 class HomeScreen extends AppScreen {
@@ -42,6 +47,18 @@ class HomeScreen extends AppScreen {
     }
     get btnNext() {
         return $(SELECTORS.NEXT_BUTTON);
+    }
+    get tfAmount() {
+        return $(SELECTORS.AMOUNT_TEXTFIELD);
+    }
+    get tfDescription() {
+        return $(SELECTORS.DESCRIPTION_TEXTFIELD);
+    }
+    get btnDone() {
+        return $(SELECTORS.DONE_BUTTON);
+    }
+    get btnHome() {
+        return $(SELECTORS.HOME_BUTTON);
     }
     
 
@@ -100,12 +117,16 @@ class HomeScreen extends AppScreen {
     }
 
     async enterAccount(account){
+        await ElementUtil.doClick(this.btnTransfer);
+        await ElementUtil.doClick(this.tfAccount);
         await ElementUtil.doSetValue(this.tfAccount, account);
         await ElementUtil.doClick(this.btnNext);
     }
 
-    async enterAmount(amount){
+    async enterAmountDescription(amount, description){
         await ElementUtil.doSetValue(this.tfAmount, amount);
+        await ElementUtil.doClick(this.btnNext);
+        await ElementUtil.doSetValue(this.tfDescription, description);
         await ElementUtil.doClick(this.btnNext);
     }
 
@@ -200,6 +221,48 @@ class HomeScreen extends AppScreen {
         const selector = `//android.widget.ImageView[contains(translate(@content-desc,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),"${upperName}")]`;
         const element = await $(selector);
         await element.waitForDisplayed({ timeout: 5000 });
+        return true;
+    }
+
+    formatAmountBadge(amount){
+        const numeric = Number(amount);
+        if (Number.isNaN(numeric)) {
+            throw new Error(`Amount "${amount}" is not numeric`);
+        }
+        return numeric.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    async verifyRecipientAndAmount(name, amount){
+        if (!name) throw new Error('Recipient name is required');
+        if (amount === undefined || amount === null) throw new Error('Amount is required');
+        const formattedAmount = this.formatAmountBadge(amount);
+        const upperName = name.toUpperCase().replace(/"/g,'').replace(/'/g,'');
+        const selector = `//android.view.View[contains(translate(@content-desc,'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),"${upperName}")]/following-sibling::android.view.View[contains(@content-desc,"₭ ${formattedAmount}")]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({
+            timeout: 5000,
+            timeoutMsg: `Recipient card for "${name}" with amount "₭ ${formattedAmount}" did not appear`
+        });
+        await ElementUtil.doClick(this.btnDone);
+        return true;
+    }
+
+    async verifyAmountAndCapture(amount, accountName){
+        if (amount === undefined || amount === null) throw new Error('Amount is required');
+        const formattedAmount = this.formatAmountBadge(amount);
+        const selector = `//android.view.View[contains(@content-desc,"₭ ${formattedAmount}")]`;
+        const element = await $(selector);
+        await element.waitForDisplayed({
+            timeout: 5000,
+            timeoutMsg: `Amount "₭ ${formattedAmount}" did not appear`
+        });
+        const desc = await element.getAttribute('content-desc');
+        const screenshotRef = desc || `₭ ${formattedAmount}`;
+        await this.captureAmountScreenshot(accountName, screenshotRef);
+        await ElementUtil.doClick(this.btnHome);
         return true;
     }
 

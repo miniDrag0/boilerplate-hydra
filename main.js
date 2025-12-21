@@ -116,8 +116,11 @@ const runMutasiBcel = (event, args) => {
       }
   }
 
-  console.log(`Received run-mutasi-bcel command. Mode: ${mode}, Port: ${port}`);
-  
+  const getDefaultPortForMode = (selectedMode) => selectedMode === 'LDB' ? '4726' : '4725';
+  const resolvedPort = port || getDefaultPortForMode(mode);
+  console.log(`Mode: ${mode}, Port: ${resolvedPort}`);
+  event.sender.send('command-output', `Mode: ${mode}, Port: ${resolvedPort}`);
+
   const configs = {
     BCEL: 'wdio.mutasi.bcel.conf.js',
     LDB: 'wdio.mutasi.ldb.conf.js'
@@ -148,9 +151,24 @@ const runMutasiBcel = (event, args) => {
   
   // Create environment variables object merging existing process.env
   const env = { ...process.env };
-  if (port) env.PORT_BCEL = port;
-  if (deviceId) env.DEVICE_BCEL = deviceId;
-  if (androidVersion) env.DEVICE_BCEL_OS_VERSION = androidVersion;
+  if (resolvedPort) {
+    env.PORT_BCEL = resolvedPort;
+    if (mode === 'LDB') {
+      env.PORT_LDB = resolvedPort;
+    }
+  }
+  if (deviceId) {
+    env.DEVICE_BCEL = deviceId;
+    if (mode === 'LDB') {
+      env.DEVICE_LDB = deviceId;
+    }
+  }
+  if (androidVersion) {
+    env.DEVICE_BCEL_OS_VERSION = androidVersion;
+    if (mode === 'LDB') {
+      env.DEVICE_LDB_OS_VERSION = androidVersion;
+    }
+  }
 
   // Pass new UI args to environment
   if (passwordApp) env.PASSWORD_APP = passwordApp;

@@ -163,6 +163,7 @@
         const bcelFields = document.getElementById('bcel-fields');
         const ldbFields = document.getElementById('ldb-fields');
         const screenshotSection = document.getElementById('screenshot-section');
+        const portInput = document.getElementById('port-input');
         let batchQueue = [];
         let isBatchRunning = false;
         let isRunning = false;
@@ -174,6 +175,8 @@
             target.appendChild(screenshotSection);
         };
 
+        const getDefaultPortForMode = (mode) => mode === 'LDB' ? '4726' : '4725';
+
         const updateModeUI = () => {
             const mode = getSelectedMode();
             const showBcel = mode === 'BCEL';
@@ -182,6 +185,10 @@
             moveScreenshotSection(mode);
             if (!isRunning) {
                 startBtn.textContent = `Start ${mode}`;
+            }
+            const defaultPort = getDefaultPortForMode(mode);
+            if (!isRunning && !portInput.value.trim()) {
+                portInput.value = defaultPort;
             }
         };
 
@@ -278,9 +285,12 @@
             const logArea = document.querySelector('.log-area');
             
             try {
-                const portInput = document.getElementById('port-input');
-                const port = portInput.value.trim();
+                let port = portInput.value.trim();
                 const mode = getSelectedMode();
+                if (!port) {
+                    port = getDefaultPortForMode(mode);
+                    portInput.value = port;
+                }
                 
                 if (!isRunning) {
                     console.log(`Attempting to start in ${mode} mode`);

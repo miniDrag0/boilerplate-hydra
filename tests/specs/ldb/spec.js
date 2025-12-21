@@ -70,13 +70,20 @@ describe('Feature LDB', () => {
             console.log(`[DEBUG] Remaining balance: ${remainingBalance}`);
             await HomeScreen.enterAccount(transfer.account);
             await HomeScreen.verifyRecipientCardVisible(transfer.name);
+            await HomeScreen.enterAmountDescription(transfer.amount, "Fund out");
+            await HomeScreen.verifyRecipientAndAmount(transfer.name, transfer.amount);
+            await LoginScreen.inputPin(password);
+            await HomeScreen.verifyAmountAndCapture(transfer.amount, transfer.name);
             // console.log(await HomeScreen.getRemainingBalanceAmount());
             // await HomeScreen.clickButtonTransfer();
             // // console.log('[DEBUG] Clicked ButtonTransfer. Now entering account...');
             // await HomeScreen.enterAccount(transfer.account);
             // // console.log('[DEBUG] Now entering amount...');
-            
-            
+        };
+
+        const failedTransfers = [];
+        for (const transfer of transfers) {
+            try {
                 await runTransfer(transfer);
             } catch (err) {
                 console.error(`[ERROR] Transfer #${transfer.no} failed:`, err.message);
