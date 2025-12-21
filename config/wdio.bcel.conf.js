@@ -36,6 +36,7 @@ exports.config = {
                     // Auto download ChromeDriver
                     relaxedSecurity: true,
                     port: appiumPort,
+                    address: '127.0.0.1',
                     // chromedriverAutodownload: true,
                     // For more arguments see
                     // https://github.com/webdriverio/webdriverio/tree/master/packages/wdio-appium-service

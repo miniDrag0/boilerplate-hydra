@@ -195,6 +195,9 @@ body {
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
     padding-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .modal-header h2 {
@@ -229,4 +232,32 @@ body {
 .device-item-model {
     color: #666;
     font-size: 0.9em;
+}
+
+/* Table Styles for Preview */
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.preview-table th, .preview-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.preview-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.preview-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.close-modal:hover {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
 }

@@ -9,6 +9,71 @@ app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('disable-accelerated-video-decode');
 
+// --- Standalone Binaries Setup ---
+const localScrcpyDir = path.join(__dirname, 'scrcpy', 'scrcpy-win64-v2.4');
+const localAdbPath = path.join(localScrcpyDir, 'adb.exe');
+const localNodePath = path.join(__dirname, 'bin', 'node.exe');
+const localNodeBinDir = path.join(__dirname, 'node_modules', '.bin');
+
+// Bundled Java and Android SDK (Build Tools)
+// Assumes structure:
+//   /java/bin/java.exe
+//   /android-sdk/build-tools/ (which contains aapt.exe, apksigner.bat, etc.)
+//   /android-sdk/platform-tools/ (containing adb.exe)
+const localJavaHome = path.join(__dirname, 'java');
+const localAndroidSdkRoot = path.join(__dirname, 'android-sdk');
+
+// Set JAVA_HOME if bundled Java exists
+if (fs.existsSync(localJavaHome)) {
+  process.env.JAVA_HOME = localJavaHome;
+}
+
+// Set ANDROID_HOME if bundled SDK exists
+if (fs.existsSync(localAndroidSdkRoot)) {
+  process.env.ANDROID_HOME = localAndroidSdkRoot;
+}
+
+// Add local binaries to PATH so child processes (like wdio/appium) can find them
+let newPath = process.env.PATH;
+
+// Prepend Java bin to PATH
+if (fs.existsSync(path.join(localJavaHome, 'bin'))) {
+  newPath = path.join(localJavaHome, 'bin') + path.delimiter + newPath;
+}
+
+// Prepend Android Build Tools to PATH
+const buildToolsDir = path.join(localAndroidSdkRoot, 'build-tools');
+if (fs.existsSync(buildToolsDir)) {
+   newPath = buildToolsDir + path.delimiter + newPath;
+}
+
+// Prepend Android Platform Tools (ADB) to PATH - CRITICAL for Appium
+const platformToolsDir = path.join(localAndroidSdkRoot, 'platform-tools');
+if (fs.existsSync(platformToolsDir)) {
+   newPath = platformToolsDir + path.delimiter + newPath;
+}
+
+if (fs.existsSync(localScrcpyDir)) {
+  newPath = localScrcpyDir + path.delimiter + newPath;
+}
+if (fs.existsSync(localNodeBinDir)) {
+    newPath = localNodeBinDir + path.delimiter + newPath;
+}
+if (fs.existsSync(path.dirname(localNodePath))) {
+  newPath = path.dirname(localNodePath) + path.delimiter + newPath;
+}
+process.env.PATH = newPath;
+
+// Helper to get ADB command
+function getAdbCommand() {
+  return fs.existsSync(localAdbPath) ? `"${localAdbPath}"` : 'adb';
+}
+
+// Helper to get Node command
+function getNodeCommand() {
+  return fs.existsSync(localNodePath) ? `"${localNodePath}"` : 'node';
+}
+
 function createWindow () {
   const win = new BrowserWindow({
     width: 1200,
@@ -49,11 +114,13 @@ const runMutasiBcel = (event, args) => {
   // Device Detection
   let deviceId = args && args.deviceId ? args.deviceId : null;
   let androidVersion = null;
+  
+  const adbCmd = getAdbCommand();
 
   if (!deviceId) {
     try {
       event.sender.send('command-output', 'Detecting connected devices...');
-      const devicesOutput = execSync('adb devices -l').toString();
+      const devicesOutput = execSync(`${adbCmd} devices -l`).toString();
       
       const lines = devicesOutput.split(/\r?\n/);
       const foundDevices = [];
@@ -105,7 +172,7 @@ const runMutasiBcel = (event, args) => {
   if (deviceId) {
       try {
           // Double check version if not passed
-          androidVersion = execSync(`adb -s ${deviceId} shell getprop ro.build.version.release`).toString().trim();
+          androidVersion = execSync(`${adbCmd} -s ${deviceId} shell getprop ro.build.version.release`).toString().trim();
           
           event.sender.send('command-output', `Using Device: ${deviceId}, Android: ${androidVersion}`);
           console.log(`Detected Device: ${deviceId}, Android: ${androidVersion}`);
@@ -130,9 +197,11 @@ const runMutasiBcel = (event, args) => {
   const configPath = path.join(__dirname, 'config', modeConfig);
   
   let command;
+  const nodeCmd = getNodeCommand();
+
   if (fs.existsSync(wdioPath)) {
-      // Use "node" explicitly. Assumes node is in system PATH (required for appium/wdio anyway)
-      command = `node "${wdioPath}" run "${configPath}"`;
+      // Use local node if available
+      command = `${nodeCmd} "${wdioPath}" run "${configPath}"`;
   } else {
       console.warn('Local wdio not found at:', wdioPath);
       // Fallback only if absolutely necessary, but this likely means the build is broken
@@ -338,4 +407,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
