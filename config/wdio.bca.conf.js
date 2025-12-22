@@ -41,7 +41,7 @@ exports.config = {
                     // For more arguments see
                     // https://github.com/webdriverio/webdriverio/tree/master/packages/wdio-appium-service
                 },
-                command: path.join(process.cwd(), 'node_modules', '.bin', 'appium.cmd'),
+                command: path.join(__dirname, '..', 'appium-launcher.cmd'),
             },
         ],
       //   [slack, {

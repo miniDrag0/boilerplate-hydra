@@ -43,7 +43,7 @@ exports.config = {
                     // https://github.com/webdriverio/webdriverio/tree/master/packages/wdio-appium-service
                 },
                 logPath: './logs', // capture Appium server logs for debugging
-                command: path.join(process.cwd(), 'node_modules', '.bin', 'appium.cmd'),
+                command: path.join(__dirname, '..', 'appium-launcher.cmd'),
             },
         ],
       //   [slack, {
