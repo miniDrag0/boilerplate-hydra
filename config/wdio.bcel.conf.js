@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const slack = require('wdio-slack-service');
 const appiumPort = parseInt(process.env.PORT_BCEL, 10) || 4725;
 exports.config = {
@@ -42,7 +43,7 @@ exports.config = {
                     // https://github.com/webdriverio/webdriverio/tree/master/packages/wdio-appium-service
                 },
                 logPath: './logs', // capture Appium server logs for debugging
-                command: 'appium',
+                command: path.join(process.cwd(), 'node_modules', '.bin', 'appium.cmd'),
             },
         ],
       //   [slack, {
