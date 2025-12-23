@@ -7,6 +7,20 @@ const path = require('path');
 const screenshotBaseDir = process.env.SCREENSHOT_BASE_DIR && process.env.SCREENSHOT_BASE_DIR.trim()
     ? path.resolve(process.env.SCREENSHOT_BASE_DIR.trim())
     : path.resolve(__dirname, '../../bcel/screenshots/mutasi');
+const INSUFFICIENT_BALANCE_THRESHOLD = 50000;
+const parseNumericText = (valueText) => {
+    const stringValue = valueText === undefined || valueText === null ? '' : String(valueText);
+    const match = stringValue.match(/[\d,]+(?:\.\d+)?/);
+    if (!match) {
+        throw new Error(`Unable to parse numeric value from "${valueText}"`);
+    }
+    const sanitized = match[0].replace(/,/g, '');
+    const numeric = Number(sanitized);
+    if (Number.isNaN(numeric)) {
+        throw new Error(`Unable to parse numeric value from "${valueText}"`);
+    }
+    return numeric;
+};
 const getDateFolder = () => {
     const now = new Date();
     const pad = (value) => String(value).padStart(2, '0');
@@ -74,7 +88,13 @@ describe('Feature BCEL', () => {
             // console.log('[DEBUG] Login Completed. Clicking LabelUnionPay...');
             await HomeScreen.clickLabelUnionPay();
             // console.log('[DEBUG] Clicked LabelUnionPay. Clicking ButtonTransfer...');
-            await HomeScreen.clickLabelBalance();
+            const balanceText = await HomeScreen.clickLabelBalance();
+            const balanceValue = parseNumericText(balanceText);
+            const transferValue = parseNumericText(transfer.amount);
+            console.log(`[DEBUG] Balance check: ${balanceValue} - ${transferValue} vs threshold ${INSUFFICIENT_BALANCE_THRESHOLD}`);
+            if (balanceValue - transferValue < INSUFFICIENT_BALANCE_THRESHOLD) {
+                throw new Error('insufficient balance');
+            }
             await HomeScreen.clickButtonTransfer();
             // console.log('[DEBUG] Clicked ButtonTransfer. Now entering account...');
             await HomeScreen.enterAccount(transfer.account);

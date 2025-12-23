@@ -95,7 +95,9 @@ class HomeScreen extends AppScreen {
 
     async clickLabelBalance(){
         await ElementUtil.doClick(this.btnShowBalance);
-        console.log(await this.lblBalance.getText());
+        const balanceText = await this.lblBalance.getText();
+        console.log(balanceText);
+        return balanceText;
     }
 
     async enterAccount(account){
