@@ -19,22 +19,19 @@
     <!-- Main Content -->
     <div class="container">
         
-        <!-- Top Action Buttons -->
-        <div class="top-actions">
-            <button class="btn btn-pill" id="start-bcel-btn">Start BCEL</button>
-        </div>
-
         <!-- Form Card -->
         <div class="card">
-            <div class="form-group">
+            <div class="form-group app-mode-row">
                 <label>App Mode:</label>
-                <div style="margin-top: 5px;">
-                    <label style="display: inline-block; margin-right: 15px; font-weight: normal;">
-                        <input type="radio" name="app-mode" value="BCEL" checked> BCEL
-                    </label>
-                    <label style="display: inline-block; font-weight: normal;">
-                        <input type="radio" name="app-mode" value="LDB"> LDB
-                    </label>
+                <div class="app-mode-controls">
+                    <div class="mode-options" style="margin-top: 5px;">
+                        <label style="display: inline-block; margin-right: 15px; font-weight: normal;">
+                            <input type="radio" name="app-mode" value="BCEL" checked> BCEL
+                        </label>
+                        <label style="display: inline-block; font-weight: normal;">
+                            <input type="radio" name="app-mode" value="LDB"> LDB
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -85,8 +82,12 @@
                         <small class="form-text text-muted">
                             Specify where capture PNGs should be stored (will append date folder).
                         </small>
+                        <div class="start-button-row">
+                            <button class="btn btn-start" id="start-bcel-btn">Start BCEL</button>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
             <!-- LDB Specific Fields -->
@@ -122,8 +123,24 @@
             <button class="btn btn-default" id="save-btn">Save</button>
         </div>
 
+        <!-- Progress Section -->
+        <div class="progress-section" id="progress-section">
+            <div class="progress-header">
+                <span>Transfer Progress</span>
+                <span id="progress-count">0/0</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-bar-fill"></div>
+            </div>
+            <div class="progress-detail" id="progress-detail">Idle</div>
+        </div>
+
         <!-- Log Area -->
-        <div class="log-area">
+        <div class="log-header">
+            <button class="btn btn-default btn-log" id="log-toggle-btn">Show Log</button>
+            <span class="log-header-label">Console Output</span>
+        </div>
+        <div class="log-area log-hidden" id="log-area">
             <!-- Content goes here -->
         </div>
 
@@ -205,6 +222,8 @@
         const previewTable = document.getElementById('preview-table');
         const closePreviewModalBtn = document.getElementById('close-preview-modal');
         const closePreviewX = document.getElementById('close-preview-x');
+        const logAreaElement = document.getElementById('log-area');
+        const logToggleBtn = document.getElementById('log-toggle-btn');
         
         const openScreenshotDirDialog = () => {
             if (!ipcRenderer) {
@@ -223,6 +242,21 @@
         browseScreenshotBtn.addEventListener('click', openScreenshotDirDialog);
         screenshotDirInput.addEventListener('click', openScreenshotDirDialog);
 
+        let isLogVisible = false;
+        const setLogVisibility = (visible) => {
+            isLogVisible = visible;
+            if (logAreaElement) {
+                logAreaElement.classList.toggle('log-hidden', !visible);
+            }
+            if (logToggleBtn) {
+                logToggleBtn.textContent = visible ? 'Hide Log' : 'Show Log';
+            }
+        };
+        if (logToggleBtn) {
+            logToggleBtn.addEventListener('click', () => setLogVisibility(!isLogVisible));
+        }
+        setLogVisibility(false);
+
         // Mode handling
         const modeRadios = document.getElementsByName('app-mode');
         const bcelFields = document.getElementById('bcel-fields');
@@ -233,6 +267,13 @@
         let isBatchRunning = false;
         let isRunning = false;
         let pendingArgs = null; // Store all args during device selection
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        const progressCount = document.getElementById('progress-count');
+        const progressDetail = document.getElementById('progress-detail');
+        let batchTotal = 0;
+        let batchCompleted = 0;
+        let transferCountForProgress = 0;
+        let processedTransferCount = 0;
 
         const moveScreenshotSection = (mode) => {
             if (!screenshotSection) return;
@@ -241,6 +282,32 @@
         };
 
         const getDefaultPortForMode = (mode) => mode === 'LDB' ? '4726' : '4725';
+
+        const updateProgressUI = (detail) => {
+            if (!progressBarFill && !progressCount && !progressDetail) return;
+            const percent = batchTotal ? Math.min(100, Math.round((batchCompleted / batchTotal) * 100)) : 0;
+            if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+            if (progressCount) progressCount.textContent = batchTotal ? `${batchCompleted}/${batchTotal}` : '0/0';
+            if (progressDetail) progressDetail.textContent = detail || (batchTotal ? `Completed ${batchCompleted}/${batchTotal}` : 'Idle');
+        };
+
+        const prepareBatchProgress = (total, detail = 'Ready to start') => {
+            transferCountForProgress = total;
+            batchTotal = total;
+            batchCompleted = 0;
+            processedTransferCount = 0;
+            updateProgressUI(detail);
+        };
+
+        const markProgressCompleted = () => {
+            if (!transferCountForProgress) return;
+            batchCompleted = Math.min(transferCountForProgress, batchCompleted + 1);
+            processedTransferCount = batchCompleted;
+            const detail = processedTransferCount === transferCountForProgress
+                ? 'All transfers complete'
+                : `Completed ${processedTransferCount}/${transferCountForProgress}`;
+            updateProgressUI(detail);
+        };
 
         const updateModeUI = () => {
             const mode = getSelectedMode();
@@ -261,7 +328,8 @@
             radio.addEventListener('change', updateModeUI);
         });
         updateModeUI();
-        
+        updateProgressUI('Idle');
+
         function getSelectedMode() {
             return document.querySelector('input[name="app-mode"]:checked').value;
         }
@@ -312,6 +380,35 @@
             }
             return data;
         }
+
+        const parseTransferList = (text) => {
+            if (!text) return [];
+            return parseCSV(text, ['No', 'Nama Akun', 'Nomor Akun', 'Amount'], 4, { skipHeader: true });
+        };
+
+        const setupTransferProgress = (transferCsvText) => {
+            const transfers = parseTransferList(transferCsvText);
+            const detail = transfers.length
+                ? 'Ready to send transfers'
+                : 'No valid transfers found';
+            prepareBatchProgress(transfers.length, detail);
+        };
+
+        const transferStartRegex = /Starting automation for transfer #(\d+)/i;
+        const transferDoneRegex = /Transfer #[\d]+.*iteration done/i;
+        const transferFailedRegex = /Transfer #[\d]+.*failed/i;
+
+        const trackTransferLog = (message) => {
+            if (!transferCountForProgress || !message) return;
+            const trimmed = String(message).trim();
+            const startMatch = transferStartRegex.exec(trimmed);
+            if (startMatch) {
+                const startIndex = Math.min(transferCountForProgress, Number(startMatch[1]));
+                batchCompleted = Math.max(0, startIndex - 1);
+                updateProgressUI(`Processing ${startIndex}/${transferCountForProgress}`);
+            }
+        };
+
 
         // Preview Logic
         document.querySelectorAll('.preview-btn').forEach(btn => {
@@ -383,7 +480,7 @@
         closePreviewModalBtn.addEventListener('click', closePreview);
         closePreviewX.addEventListener('click', closePreview);
 
-        const finishRun = () => {
+        const finishRun = (progressMessage = 'Idle') => {
             isBatchRunning = false;
             isRunning = false;
             pendingArgs = null;
@@ -391,13 +488,14 @@
             startBtn.classList.add('btn-pill');
             startBtn.disabled = false;
             updateModeUI();
+            updateProgressUI(progressMessage);
         };
 
         function processNextInBatch() {
             if (batchQueue.length === 0) {
                 const logArea = document.querySelector('.log-area');
                 logArea.innerHTML += `<div>Batch processing finished.</div>`;
-                finishRun();
+                finishRun('All transfers complete');
                 return;
             }
 
@@ -480,6 +578,7 @@
                                 }
 
                                 console.log(`Parsed ${data.length} rows from CSV`);
+                                setupTransferProgress(transferCsvText);
                                 const logAreaRef = document.querySelector('.log-area'); // Re-select to be safe
                                 logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
                                 
@@ -533,6 +632,7 @@
                                 return;
                             }
 
+                            setupTransferProgress(transferCsvText);
                             const logAreaRef = document.querySelector('.log-area');
                             logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
 
@@ -592,6 +692,7 @@
             ipcRenderer.on('process-finished', (event, code) => {
                  // If batch is running, process next
                  if (isBatchRunning) {
+                     markProgressCompleted();
                      // Delay slightly to ensure cleanup?
                      setTimeout(() => {
                          processNextInBatch();
@@ -625,6 +726,7 @@
                 logArea.appendChild(div);
                 // Auto scroll to bottom
                 logArea.scrollTop = logArea.scrollHeight;
+                trackTransferLog(message);
             });
     
             // Device Selection Logic

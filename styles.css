@@ -134,13 +134,33 @@ body {
     pointer-events: none; /* Make it feel truly disabled */
 }
 
+.start-button-row {
+    margin-top: 16px;
+}
+
+.start-button-row .btn-start {
+    width: 100%;
+    max-width: none;
+    justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Middle Actions */
 .middle-actions {
     display: flex;
-    justify-content: flex-end; /* Right aligned as per typical form actions, check image */
-    /* Looking at image, it seems right aligned. */
+    justify-content: flex-end;
     gap: 8px;
     margin-bottom: 15px;
+}
+
+.app-mode-row .app-mode-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 5px;
 }
 
 .btn-default {
@@ -154,6 +174,27 @@ body {
     border-color: #dae0e5;
 }
 
+.btn-start {
+    background: linear-gradient(90deg, #c82333, #e53935);
+    color: #fff;
+    font-weight: 600;
+    border-color: transparent;
+    box-shadow: 0 6px 12px rgba(200, 35, 51, 0.25);
+    padding: 0.5rem 1.25rem;
+    border-radius: 999px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-start:focus-visible,
+.btn-start:active {
+    outline: none;
+    box-shadow: 0 0 0 0.25rem rgba(232, 57, 53, 0.6);
+}
+
+.btn-start:hover {
+    transform: translateY(-1px);
+}
+
 /* Log Area */
 .log-area {
     background-color: #fff;
@@ -165,6 +206,67 @@ body {
     font-family: monospace; /* Monospace font for logs */
     font-size: 0.9rem;
     white-space: pre-wrap; /* Preserve whitespace and wrap text */
+}
+
+.log-hidden {
+    display: none;
+}
+
+.log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
+.log-header-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.btn-log {
+    padding: 0.35rem 0.85rem;
+}
+
+.progress-section {
+    background-color: #ffffff;
+    border: 1px solid #ced4da;
+    border-radius: 0.5rem;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #212529;
+    font-size: 0.95rem;
+}
+
+.progress-bar {
+    position: relative;
+    background-color: #e9ecef;
+    border-radius: 999px;
+    height: 14px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+    background: linear-gradient(90deg, #007bff, #20c997);
+    height: 100%;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.progress-detail {
+    font-size: 0.9rem;
+    color: #495057;
 }
 
 /* Modal styles */
