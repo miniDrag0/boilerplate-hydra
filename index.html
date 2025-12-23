@@ -98,7 +98,7 @@
                         <button type="button" class="btn btn-default preview-btn" data-input-id="ldb-credentials-csv" data-type="account-ldb" style="display: none;">Preview</button>
                     </div>
                     <small class="form-text text-muted">
-                        Format: Password, MotherBirthday, HouseNumber, PhoneFirst
+                        Format: PIN
                     </small>
                 </div>
                 <div class="form-group">
@@ -289,7 +289,7 @@
             if (lines[0]) {
                 const firstLine = lines[0].toLowerCase();
                 const forcedSkip = options.skipHeader === true;
-                const autoSkip = firstLine.includes('password') || firstLine.includes('mother') || firstLine.includes('no') || firstLine.includes('nama');
+                const autoSkip = firstLine.includes('password') || firstLine.includes('mother') || firstLine.includes('no') || firstLine.includes('nama') || firstLine.includes('pin');
                 if (forcedSkip || autoSkip) {
                     startIndex = 1; // Skip header
                 }
@@ -340,22 +340,16 @@
                         fields = ['No', 'Nama Akun', 'Nomor Akun', 'Amount'];
                         minParts = 4;
                     } else if (type === 'account-ldb') {
-                         // LDB uses only password internally but user uploads full csv often?
-                         // Displaying all columns is safer for preview.
-                         // But if we want to match internal logic:
-                         // Internal logic: parseCSV(credentialsCsvText, ['passwordApp'], 1, { skipHeader: true });
-                         // But for preview, let's show what we parsed.
-                         // Let's use the standard 4 fields for display if it matches, otherwise generic.
-                         fields = ['Password', 'MotherBirthday', 'HouseNumber', 'PhoneFirst'];
-                         minParts = 1; // Allow fewer if LDB only needs 1
-                         // Note: parseCSV function above returns object with keys matching fields.
-                         // If we want to display headers, we should use 'fields' as headers.
+                         // LDB uses only password internally (PIN)
+                         fields = ['PIN'];
+                         minParts = 1; 
+                         skipHeader = true;
                     }
 
                     // For preview, we want to show the raw-ish data but structured.
                     // We reuse parseCSV but with display-friendly keys (the headers themselves).
                     
-                    const data = parseCSV(text, fields, minParts);
+                    const data = parseCSV(text, fields, minParts, { skipHeader });
                     
                     // Build Table
                     let html = '<thead><tr>';
@@ -439,6 +433,11 @@
 
         startBtn.addEventListener('click', () => {
             console.log('Start button clicked');
+            
+            // Reset Device ID and Android Version to trigger re-detection/update
+            document.getElementById('device-id-input').value = 'Device ID will be auto-filled';
+            document.getElementById('android-version-input').value = 'Android Version will be auto-filled';
+            
             const logArea = document.querySelector('.log-area');
             
             try {
