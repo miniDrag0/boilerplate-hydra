@@ -7,6 +7,18 @@ const path = require('path');
 const screenshotBaseDir = process.env.SCREENSHOT_BASE_DIR && process.env.SCREENSHOT_BASE_DIR.trim()
     ? path.resolve(process.env.SCREENSHOT_BASE_DIR.trim())
     : path.resolve(__dirname, '../../ldb/screenshots/mutasi');
+const INSUFFICIENT_BALANCE_THRESHOLD = 50000;
+const parseCurrencyValue = (valueText) => {
+    const normalized = valueText.replace(/[^\d.]/g, '');
+    if (!normalized) {
+        throw new Error(`Unable to parse currency value from "${valueText}"`);
+    }
+    const numeric = Number(normalized);
+    if (Number.isNaN(numeric)) {
+        throw new Error(`Unable to parse currency value from "${valueText}"`);
+    }
+    return numeric;
+};
 const getDateFolder = () => {
     const now = new Date();
     const pad = (value) => String(value).padStart(2, '0');
@@ -68,6 +80,11 @@ describe('Feature LDB', () => {
             await HomeScreen.ensureSwitchEnabled();
             const remainingBalance = await HomeScreen.getDynamicBalanceAfterSwitch();
             console.log(`[DEBUG] Remaining balance: ${remainingBalance}`);
+            const numericRemainingBalance = parseCurrencyValue(remainingBalance);
+            const numericTransferAmount = parseCurrencyValue(transfer.amount);
+            if (numericRemainingBalance - numericTransferAmount < INSUFFICIENT_BALANCE_THRESHOLD) {
+                throw new Error('insufficient balance');
+            }
             await HomeScreen.enterAccount(transfer.account);
             await HomeScreen.verifyRecipientCardVisible(transfer.name);
             await HomeScreen.enterAmountDescription(transfer.amount, "Fund out");
