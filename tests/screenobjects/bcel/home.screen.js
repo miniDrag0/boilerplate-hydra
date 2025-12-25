@@ -4,7 +4,7 @@ const GestureUtil = require('../../helpers/Gestures');
 const LoginScreen = require('./login.screen');
 const fs = require('fs');
 const path = require('path');
-const Jimp = require('jimp');
+const ImageUtil = require('../../helpers/ImageUtil');
 
 const SELECTORS = {
     ONECASH_LABEL: '//android.widget.TextView[@text="OneCash Wallet"]',
@@ -24,6 +24,12 @@ const SELECTORS = {
     DONE_BUTTON: '//android.widget.TextView[@resource-id="done"]',
 
 };
+
+const AMOUNT_LABEL_WAIT_TIMEOUT = 8000;
+const AMOUNT_LABEL_SELECTORS = [
+    '//android.widget.TextView[@text="Amount"]/following-sibling::android.widget.TextView[contains(@text,"LAK")][1]',
+    '(//android.widget.TextView[contains(@text,"LAK")])[1]'
+];
 
 class HomeScreen extends AppScreen {
     constructor () {
@@ -89,7 +95,9 @@ class HomeScreen extends AppScreen {
 
     async clickLabelBalance(){
         await ElementUtil.doClick(this.btnShowBalance);
-        console.log(await this.lblBalance.getText());
+        const balanceText = await this.lblBalance.getText();
+        console.log(balanceText);
+        return balanceText;
     }
 
     async enterAccount(account){
@@ -102,50 +110,90 @@ class HomeScreen extends AppScreen {
         await ElementUtil.doClick(this.btnNext);
     }
 
-    formatAmountForSelector(amount){
-        const numeric = Number(amount);
+    parseAmountToNumber(amount){
+        if (amount === undefined || amount === null) {
+            throw new Error('Amount is required');
+        }
+        const sanitized = String(amount).replace(/[^0-9.\-]/g, '');
+        if (!sanitized || sanitized === '-' || sanitized === '.') {
+            throw new Error(`Amount "${amount}" is not numeric`);
+        }
+        const numeric = Number(sanitized);
         if (Number.isNaN(numeric)) {
             throw new Error(`Amount "${amount}" is not numeric`);
         }
+        return numeric;
+    }
+
+    formatAmountForSelector(amount){
+        const numeric = typeof amount === 'number' ? amount : this.parseAmountToNumber(amount);
         return numeric.toLocaleString('en-US');
     }
 
-    async verifyDisplayedAmount(expectedAmount, accountName){
-        const formatted = this.formatAmountForSelector(expectedAmount);
-        const expectedText = `${formatted} LAK`;
-        const selector = `(//android.widget.TextView[@text="${expectedText}"])[1]`;
-        const element = await $(selector);
-        await element.waitForDisplayed({
-            timeout: 2000,
-            timeoutMsg: `Amount label "${expectedText}" did not appear`
-        });
-        const amountText = await element.getText();
-        if (amountText === expectedText) {
-            await ElementUtil.doClick(this.btnNext);
+    parseNumericValueFromText(text){
+        if (!text) {
+            return null;
         }
-        if (amountText !== expectedText) {
+        const sanitized = String(text).replace(/[^0-9.]/g, '');
+        if (!sanitized) {
+            return null;
+        }
+        const numeric = Number(sanitized);
+        return Number.isNaN(numeric) ? null : numeric;
+    }
+
+    numericValuesMatch(expected, actual){
+        if (expected === null || actual === null) {
+            return false;
+        }
+        const difference = Math.abs(expected - actual);
+        return difference < 0.0001;
+    }
+
+    async findAmountLabelElement(timeoutMsg){
+        for (const selector of AMOUNT_LABEL_SELECTORS) {
+            try {
+                const element = await $(selector);
+                await element.waitForDisplayed({
+                    timeout: AMOUNT_LABEL_WAIT_TIMEOUT,
+                    timeoutMsg
+                });
+                return element;
+            } catch (err) {
+                // continue to next selector
+            }
+        }
+        throw new Error(timeoutMsg);
+    }
+
+    async verifyDisplayedAmount(expectedAmount, accountName){
+        const expectedNumeric = this.parseAmountToNumber(expectedAmount);
+        const formatted = this.formatAmountForSelector(expectedNumeric);
+        const expectedText = `${formatted} LAK`;
+        const timeoutMsg = `Amount label "${expectedText}" did not appear`;
+        const element = await this.findAmountLabelElement(timeoutMsg);
+        const amountText = await element.getText();
+        const actualNumeric = this.parseNumericValueFromText(amountText);
+        if (!this.numericValuesMatch(expectedNumeric, actualNumeric)) {
             throw new Error(`Displayed amount "${amountText}" did not match expected "${expectedText}"`);
         }
+        await ElementUtil.doClick(this.btnNext);
         return true;
     }
 
     async verifyDisplayedMutationSuccess(expectedAmount, accountName){
-        const formatted = this.formatAmountForSelector(expectedAmount);
+        const expectedNumeric = this.parseAmountToNumber(expectedAmount);
+        const formatted = this.formatAmountForSelector(expectedNumeric);
         const expectedText = `${formatted} LAK`;
-        const selector = `(//android.widget.TextView[@text="${expectedText}"])[1]`;
-        const element = await $(selector);
-        await element.waitForDisplayed({
-            timeout: 2000,
-            timeoutMsg: `Amount label "${expectedText}" did not appear`
-        });
+        const timeoutMsg = `Amount label "${expectedText}" did not appear`;
+        const element = await this.findAmountLabelElement(timeoutMsg);
         const amountText = await element.getText();
         await this.captureAmountScreenshot(accountName, amountText);
-        if (amountText === expectedText) {
-            await ElementUtil.doClick(this.btnDone);
-        }
-        if (amountText !== expectedText) {
+        const actualNumeric = this.parseNumericValueFromText(amountText);
+        if (!this.numericValuesMatch(expectedNumeric, actualNumeric)) {
             throw new Error(`Displayed amount "${amountText}" did not match expected "${expectedText}"`);
         }
+        await ElementUtil.doClick(this.btnDone);
         return true;
     }
 
@@ -162,8 +210,7 @@ class HomeScreen extends AppScreen {
         const filePath = path.join(screenshotDir, fileName);
         await driver.saveScreenshot(filePath);
         try {
-            const image = await Jimp.read(filePath);
-            await image.resize(800, Jimp.AUTO).quality(60).writeAsync(filePath);
+            await ImageUtil.resizeImageToLimit(filePath);
         } catch (resizeErr) {
             console.warn('Screenshot resize failed:', resizeErr);
         }

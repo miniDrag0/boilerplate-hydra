@@ -4,7 +4,7 @@ const GestureUtil = require('../../helpers/Gestures');
 const LoginScreen = require('./login.screen');
 const fs = require('fs');
 const path = require('path');
-const Jimp = require('jimp');
+const ImageUtil = require('../../helpers/ImageUtil');
 
 const SELECTORS = {
     REMAINING_BALANCE_CARD: '//android.view.View[contains(translate(@content-desc,"abcdefghijklmnopqrstuvwxyz","ABCDEFGHIJKLMNOPQRSTUVWXYZ"),"REMAINING BALANCE")]',
@@ -190,8 +190,7 @@ class HomeScreen extends AppScreen {
         const filePath = path.join(screenshotDir, fileName);
         await driver.saveScreenshot(filePath);
         try {
-            const image = await Jimp.read(filePath);
-            await image.resize(800, Jimp.AUTO).quality(60).writeAsync(filePath);
+            await ImageUtil.resizeImageToLimit(filePath);
         } catch (resizeErr) {
             console.warn('Screenshot resize failed:', resizeErr);
         }

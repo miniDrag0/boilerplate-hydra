@@ -7,13 +7,85 @@ const path = require('path');
 const screenshotBaseDir = process.env.SCREENSHOT_BASE_DIR && process.env.SCREENSHOT_BASE_DIR.trim()
     ? path.resolve(process.env.SCREENSHOT_BASE_DIR.trim())
     : path.resolve(__dirname, '../../bcel/screenshots/mutasi');
+const INSUFFICIENT_BALANCE_THRESHOLD = 50000;
+const parseNumericText = (valueText) => {
+    const stringValue = valueText === undefined || valueText === null ? '' : String(valueText);
+    const match = stringValue.match(/[\d,]+(?:\.\d+)?/);
+    if (!match) {
+        throw new Error(`Unable to parse numeric value from "${valueText}"`);
+    }
+    const sanitized = match[0].replace(/,/g, '');
+    const numeric = Number(sanitized);
+    if (Number.isNaN(numeric)) {
+        throw new Error(`Unable to parse numeric value from "${valueText}"`);
+    }
+    return numeric;
+};
 const getDateFolder = () => {
     const now = new Date();
     const pad = (value) => String(value).padStart(2, '0');
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 };
 
+const prepareFailedTransfersCsv = () => {
+    const failedFolder = path.join(screenshotBaseDir, getDateFolder());
+    if (!fs.existsSync(failedFolder)) {
+        fs.mkdirSync(failedFolder, { recursive: true });
+    }
+    return failedFolder;
+};
+
+const failedTransfers = [];
+let failedCsvPath = null;
+let failedCsvHeaderWritten = false;
+let hasSavedFailedCsv = false;
+
+const getFailedCsvPath = () => {
+    if (!failedCsvPath) {
+        const folder = prepareFailedTransfersCsv();
+        failedCsvPath = path.join(folder, `failed-transfers-${Date.now()}.csv`);
+    }
+    return failedCsvPath;
+};
+
+const appendFailedTransferLine = (transfer, errorMessage) => {
+    const targetPath = getFailedCsvPath();
+    if (!failedCsvHeaderWritten) {
+        fs.writeFileSync(targetPath, 'No,Nama Akun,Nomor Akun,Amount,Error\n', 'utf8');
+        failedCsvHeaderWritten = true;
+    }
+    const line = `${transfer.no},"${transfer.name}",${transfer.account},${transfer.amount},"${errorMessage.replace(/"/g, '""')}"`;
+    fs.appendFileSync(targetPath, `${line}\n`, 'utf8');
+};
+
+const writeFailedTransfersCsv = () => {
+    if (!failedCsvPath || hasSavedFailedCsv) return;
+    console.log(`Saved failed transfer list to ${failedCsvPath}`);
+    hasSavedFailedCsv = true;
+};
+
+const registerFailedTransfersExitHook = () => {
+    const flushCsv = () => writeFailedTransfersCsv();
+    process.once('exit', flushCsv);
+    process.once('SIGINT', () => flushCsv());
+    process.once('SIGTERM', () => flushCsv());
+    process.once('uncaughtException', (err) => {
+        console.error('[ERROR] uncaughtException detected', err);
+        flushCsv();
+        process.exit(1);
+    });
+};
+registerFailedTransfersExitHook();
+
 describe('Feature BCEL', () => {
+
+    beforeEach(() => {
+        failedTransfers.length = 0;
+        failedCsvPath = null;
+        failedCsvHeaderWritten = false;
+        hasSavedFailedCsv = false;
+    });
+
 
     it('Login BCEL', async () => {   
         console.log('[DEBUG] Starting Login...');
@@ -74,7 +146,13 @@ describe('Feature BCEL', () => {
             // console.log('[DEBUG] Login Completed. Clicking LabelUnionPay...');
             await HomeScreen.clickLabelUnionPay();
             // console.log('[DEBUG] Clicked LabelUnionPay. Clicking ButtonTransfer...');
-            await HomeScreen.clickLabelBalance();
+            const balanceText = await HomeScreen.clickLabelBalance();
+            const balanceValue = parseNumericText(balanceText);
+            const transferValue = parseNumericText(transfer.amount);
+            console.log(`[DEBUG] Balance check: ${balanceValue} - ${transferValue} vs threshold ${INSUFFICIENT_BALANCE_THRESHOLD}`);
+            if (balanceValue - transferValue < INSUFFICIENT_BALANCE_THRESHOLD) {
+                throw new Error('insufficient balance');
+            }
             await HomeScreen.clickButtonTransfer();
             // console.log('[DEBUG] Clicked ButtonTransfer. Now entering account...');
             await HomeScreen.enterAccount(transfer.account);
@@ -89,7 +167,6 @@ describe('Feature BCEL', () => {
             
         };
 
-        const failedTransfers = [];
         for (const transfer of transfers) {
             try {
                 await runTransfer(transfer);
@@ -102,26 +179,15 @@ describe('Feature BCEL', () => {
                     Amount: transfer.amount,
                     Error: err.message
                 });
+                appendFailedTransferLine(transfer, err.message);
                 await driver.activateApp('com.bcel.bcelone');
                 await driver.startActivity('com.bcel.bcelone', 'com.bcel.bcelone.BcelOneLogin');
             }
         }
-
-        if (failedTransfers.length) {
-            const failedFolder = path.join(screenshotBaseDir, getDateFolder());
-            if (!fs.existsSync(failedFolder)) {
-                fs.mkdirSync(failedFolder, { recursive: true });
-            }
-            const csvLines = [
-                'No,Nama Akun,Nomor Akun,Amount,Error',
-                ...failedTransfers.map(item =>
-                    `${item.No},"${item.Name}",${item.Account},${item.Amount},"${item.Error.replace(/"/g,'""')}"`
-                )
-            ];
-            const failedPath = path.join(failedFolder, `failed-transfers-${Date.now()}.csv`);
-            fs.writeFileSync(failedPath, csvLines.join('\n'), 'utf8');
-            console.log(`Saved failed transfer list to ${failedPath}`);
-        }
     });
     
+    afterAll(() => {
+        writeFailedTransfersCsv();
+    });
+
 });

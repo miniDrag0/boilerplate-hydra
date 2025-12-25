@@ -19,22 +19,19 @@
     <!-- Main Content -->
     <div class="container">
         
-        <!-- Top Action Buttons -->
-        <div class="top-actions">
-            <button class="btn btn-pill" id="start-bcel-btn">Start BCEL</button>
-        </div>
-
         <!-- Form Card -->
         <div class="card">
-            <div class="form-group">
+            <div class="form-group app-mode-row">
                 <label>App Mode:</label>
-                <div style="margin-top: 5px;">
-                    <label style="display: inline-block; margin-right: 15px; font-weight: normal;">
-                        <input type="radio" name="app-mode" value="BCEL" checked> BCEL
-                    </label>
-                    <label style="display: inline-block; font-weight: normal;">
-                        <input type="radio" name="app-mode" value="LDB"> LDB
-                    </label>
+                <div class="app-mode-controls">
+                    <div class="mode-options" style="margin-top: 5px;">
+                        <label style="display: inline-block; margin-right: 15px; font-weight: normal;">
+                            <input type="radio" name="app-mode" value="BCEL" checked> BCEL
+                        </label>
+                        <label style="display: inline-block; font-weight: normal;">
+                            <input type="radio" name="app-mode" value="LDB"> LDB
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -57,14 +54,20 @@
             <div id="bcel-fields">
                 <div class="form-group">
                     <label>Upload CSV Account Data (Login):</label>
-                    <input type="file" class="form-control" id="bcel-csv" accept=".csv">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="file" class="form-control" id="bcel-csv" accept=".csv" style="flex-grow: 1;">
+                        <button type="button" class="btn btn-default preview-btn" data-input-id="bcel-csv" data-type="account-bcel" style="display: none;">Preview</button>
+                    </div>
                     <small class="form-text text-muted">
                         Format: Password, MotherBirthday, HouseNumber, PhoneFirst
                     </small>
                 </div>
                 <div class="form-group">
                     <label>Upload CSV Transfer List:</label>
-                    <input type="file" class="form-control" id="bcel-transfer-csv" accept=".csv">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="file" class="form-control" id="bcel-transfer-csv" accept=".csv" style="flex-grow: 1;">
+                        <button type="button" class="btn btn-default preview-btn" data-input-id="bcel-transfer-csv" data-type="transfer" style="display: none;">Preview</button>
+                    </div>
                     <small class="form-text text-muted">
                         Format: No, Nama Akun, Nomor Akun, Amount
                     </small>
@@ -79,22 +82,32 @@
                         <small class="form-text text-muted">
                             Specify where capture PNGs should be stored (will append date folder).
                         </small>
+                        <div class="start-button-row">
+                            <button class="btn btn-start" id="start-bcel-btn">Start BCEL</button>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
             <!-- LDB Specific Fields -->
             <div id="ldb-fields" style="display: none;">
                 <div class="form-group">
                     <label>Upload CSV Account Data (Login):</label>
-                    <input type="file" class="form-control" id="ldb-credentials-csv" accept=".csv">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="file" class="form-control" id="ldb-credentials-csv" accept=".csv" style="flex-grow: 1;">
+                        <button type="button" class="btn btn-default preview-btn" data-input-id="ldb-credentials-csv" data-type="account-ldb" style="display: none;">Preview</button>
+                    </div>
                     <small class="form-text text-muted">
-                        Format: Password, MotherBirthday, HouseNumber, PhoneFirst
+                        Format: PIN
                     </small>
                 </div>
                 <div class="form-group">
                     <label>Upload CSV Transfer List:</label>
-                    <input type="file" class="form-control" id="ldb-transfer-csv" accept=".csv">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="file" class="form-control" id="ldb-transfer-csv" accept=".csv" style="flex-grow: 1;">
+                        <button type="button" class="btn btn-default preview-btn" data-input-id="ldb-transfer-csv" data-type="transfer" style="display: none;">Preview</button>
+                    </div>
                     <small class="form-text text-muted">
                         Format: No, Nama Akun, Nomor Akun, Amount
                     </small>
@@ -105,14 +118,29 @@
         <!-- Middle Action Buttons -->
         <div class="middle-actions">
             <button class="btn btn-default" id="scrcpy-btn">Tampilkan Layar</button>
-            <button class="btn btn-default">Report Problem</button>
             <button class="btn btn-default" id="reset-btn">Reset</button>
             <button class="btn btn-default" id="copy-btn">Copy</button>
             <button class="btn btn-default" id="save-btn">Save</button>
         </div>
 
+        <!-- Progress Section -->
+        <div class="progress-section" id="progress-section">
+            <div class="progress-header">
+                <span>Transfer Progress</span>
+                <span id="progress-count">0/0</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-bar-fill"></div>
+            </div>
+            <div class="progress-detail" id="progress-detail">Idle</div>
+        </div>
+
         <!-- Log Area -->
-        <div class="log-area">
+        <div class="log-header">
+            <button class="btn btn-default btn-log" id="log-toggle-btn">Show Log</button>
+            <span class="log-header-label">Console Output</span>
+        </div>
+        <div class="log-area log-hidden" id="log-area">
             <!-- Content goes here -->
         </div>
 
@@ -135,8 +163,51 @@
         </div>
     </div>
 
+    <!-- CSV Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content" style="width: 80%;">
+            <div class="modal-header">
+                <h2>CSV Preview</h2>
+                <span class="close-modal" id="close-preview-x" style="font-size:24px;">&times;</span>
+            </div>
+            <div class="preview-container" style="max-height: 400px; overflow: auto;">
+                <table id="preview-table" class="preview-table">
+                    <!-- Table content will be generated here -->
+                </table>
+            </div>
+            <div style="text-align: right; margin-top: 10px;">
+                <button class="btn btn-default" id="close-preview-modal">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const { ipcRenderer } = require('electron');
+        // Debug logging helper
+        function debugLog(message, isError = false) {
+            const logArea = document.querySelector('.log-area');
+            if (logArea) {
+                const color = isError ? 'red' : 'black';
+                logArea.innerHTML += `<div style="color:${color}">[DEBUG] ${message}</div>`;
+            }
+            console.log(message);
+        }
+
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            debugLog(`Global Error: ${msg} at line ${lineNo}`, true);
+            return false;
+        };
+
+        debugLog('Script starting...');
+
+        let ipcRenderer;
+        try {
+            const electron = require('electron');
+            ipcRenderer = electron.ipcRenderer;
+            debugLog('Electron loaded successfully');
+        } catch (e) {
+            debugLog(`Failed to load electron: ${e.message}`, true);
+        }
+
         const startBtn = document.getElementById('start-bcel-btn');
         const scrcpyBtn = document.getElementById('scrcpy-btn');
         const resetBtn = document.getElementById('reset-btn');
@@ -144,8 +215,21 @@
         const saveBtn = document.getElementById('save-btn');
         const screenshotDirInput = document.getElementById('screenshot-dir-input');
         const browseScreenshotBtn = document.getElementById('browse-screenshot-dir');
+        const deviceModal = document.getElementById('deviceModal');
+        const deviceList = document.getElementById('device-list');
+        const cancelDeviceSelectionBtn = document.getElementById('cancel-device-selection');
+        const previewModal = document.getElementById('previewModal');
+        const previewTable = document.getElementById('preview-table');
+        const closePreviewModalBtn = document.getElementById('close-preview-modal');
+        const closePreviewX = document.getElementById('close-preview-x');
+        const logAreaElement = document.getElementById('log-area');
+        const logToggleBtn = document.getElementById('log-toggle-btn');
         
         const openScreenshotDirDialog = () => {
+            if (!ipcRenderer) {
+                alert('Electron IPC not available.');
+                return;
+            }
             ipcRenderer.invoke('choose-screenshot-dir').then(selected => {
                 if (selected && selected.length > 0) {
                     screenshotDirInput.value = selected[0];
@@ -158,6 +242,21 @@
         browseScreenshotBtn.addEventListener('click', openScreenshotDirDialog);
         screenshotDirInput.addEventListener('click', openScreenshotDirDialog);
 
+        let isLogVisible = false;
+        const setLogVisibility = (visible) => {
+            isLogVisible = visible;
+            if (logAreaElement) {
+                logAreaElement.classList.toggle('log-hidden', !visible);
+            }
+            if (logToggleBtn) {
+                logToggleBtn.textContent = visible ? 'Hide Log' : 'Show Log';
+            }
+        };
+        if (logToggleBtn) {
+            logToggleBtn.addEventListener('click', () => setLogVisibility(!isLogVisible));
+        }
+        setLogVisibility(false);
+
         // Mode handling
         const modeRadios = document.getElementsByName('app-mode');
         const bcelFields = document.getElementById('bcel-fields');
@@ -168,6 +267,13 @@
         let isBatchRunning = false;
         let isRunning = false;
         let pendingArgs = null; // Store all args during device selection
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        const progressCount = document.getElementById('progress-count');
+        const progressDetail = document.getElementById('progress-detail');
+        let batchTotal = 0;
+        let batchCompleted = 0;
+        let transferCountForProgress = 0;
+        let processedTransferCount = 0;
 
         const moveScreenshotSection = (mode) => {
             if (!screenshotSection) return;
@@ -176,6 +282,32 @@
         };
 
         const getDefaultPortForMode = (mode) => mode === 'LDB' ? '4726' : '4725';
+
+        const updateProgressUI = (detail) => {
+            if (!progressBarFill && !progressCount && !progressDetail) return;
+            const percent = batchTotal ? Math.min(100, Math.round((batchCompleted / batchTotal) * 100)) : 0;
+            if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+            if (progressCount) progressCount.textContent = batchTotal ? `${batchCompleted}/${batchTotal}` : '0/0';
+            if (progressDetail) progressDetail.textContent = detail || (batchTotal ? `Completed ${batchCompleted}/${batchTotal}` : 'Idle');
+        };
+
+        const prepareBatchProgress = (total, detail = 'Ready to start') => {
+            transferCountForProgress = total;
+            batchTotal = total;
+            batchCompleted = 0;
+            processedTransferCount = 0;
+            updateProgressUI(detail);
+        };
+
+        const markProgressCompleted = () => {
+            if (!transferCountForProgress) return;
+            batchCompleted = Math.min(transferCountForProgress, batchCompleted + 1);
+            processedTransferCount = batchCompleted;
+            const detail = processedTransferCount === transferCountForProgress
+                ? 'All transfers complete'
+                : `Completed ${processedTransferCount}/${transferCountForProgress}`;
+            updateProgressUI(detail);
+        };
 
         const updateModeUI = () => {
             const mode = getSelectedMode();
@@ -196,10 +328,23 @@
             radio.addEventListener('change', updateModeUI);
         });
         updateModeUI();
-        
+        updateProgressUI('Idle');
+
         function getSelectedMode() {
             return document.querySelector('input[name="app-mode"]:checked').value;
         }
+
+        // Toggle Preview Button Visibility
+        const fileInputIds = ['bcel-csv', 'bcel-transfer-csv', 'ldb-credentials-csv', 'ldb-transfer-csv'];
+        fileInputIds.forEach(id => {
+            const input = document.getElementById(id);
+            const btn = document.querySelector(`.preview-btn[data-input-id="${id}"]`);
+            if (input && btn) {
+                input.addEventListener('change', () => {
+                    btn.style.display = input.files.length > 0 ? 'inline-block' : 'none';
+                });
+            }
+        });
 
         // CSV Parser
         function parseCSV(text, fields = ['passwordApp', 'motherBirthday', 'houseNumber', 'phoneFirst'], minParts = fields.length, options = {}) {
@@ -212,7 +357,7 @@
             if (lines[0]) {
                 const firstLine = lines[0].toLowerCase();
                 const forcedSkip = options.skipHeader === true;
-                const autoSkip = firstLine.includes('password') || firstLine.includes('mother');
+                const autoSkip = firstLine.includes('password') || firstLine.includes('mother') || firstLine.includes('no') || firstLine.includes('nama') || firstLine.includes('pin');
                 if (forcedSkip || autoSkip) {
                     startIndex = 1; // Skip header
                 }
@@ -236,7 +381,106 @@
             return data;
         }
 
-        const finishRun = () => {
+        const parseTransferList = (text) => {
+            if (!text) return [];
+            return parseCSV(text, ['No', 'Nama Akun', 'Nomor Akun', 'Amount'], 4, { skipHeader: true });
+        };
+
+        const setupTransferProgress = (transferCsvText) => {
+            const transfers = parseTransferList(transferCsvText);
+            const detail = transfers.length
+                ? 'Ready to send transfers'
+                : 'No valid transfers found';
+            prepareBatchProgress(transfers.length, detail);
+        };
+
+        const transferStartRegex = /Starting automation for transfer #(\d+)/i;
+        const transferDoneRegex = /Transfer #[\d]+.*iteration done/i;
+        const transferFailedRegex = /Transfer #[\d]+.*failed/i;
+
+        const trackTransferLog = (message) => {
+            if (!transferCountForProgress || !message) return;
+            const trimmed = String(message).trim();
+            const startMatch = transferStartRegex.exec(trimmed);
+            if (startMatch) {
+                const startIndex = Math.min(transferCountForProgress, Number(startMatch[1]));
+                batchCompleted = Math.max(0, startIndex - 1);
+                updateProgressUI(`Processing ${startIndex}/${transferCountForProgress}`);
+            }
+        };
+
+
+        // Preview Logic
+        document.querySelectorAll('.preview-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const inputId = btn.getAttribute('data-input-id');
+                const type = btn.getAttribute('data-type');
+                const fileInput = document.getElementById(inputId);
+
+                if (!fileInput.files.length) {
+                    alert('Please select a file first.');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    let fields = [];
+                    let minParts = 0;
+                    let skipHeader = false;
+
+                    if (type === 'account-bcel') {
+                        fields = ['Password', 'MotherBirthday', 'HouseNumber', 'PhoneFirst'];
+                        minParts = 4;
+                    } else if (type === 'transfer') {
+                        fields = ['No', 'Nama Akun', 'Nomor Akun', 'Amount'];
+                        minParts = 4;
+                    } else if (type === 'account-ldb') {
+                         // LDB uses only password internally (PIN)
+                         fields = ['PIN'];
+                         minParts = 1; 
+                         skipHeader = true;
+                    }
+
+                    // For preview, we want to show the raw-ish data but structured.
+                    // We reuse parseCSV but with display-friendly keys (the headers themselves).
+                    
+                    const data = parseCSV(text, fields, minParts, { skipHeader });
+                    
+                    // Build Table
+                    let html = '<thead><tr>';
+                    fields.forEach(f => html += `<th>${f}</th>`);
+                    html += '</tr></thead><tbody>';
+
+                    if (data.length === 0) {
+                        html += `<tr><td colspan="${fields.length}" style="text-align:center;">No valid data found or format incorrect.</td></tr>`;
+                    } else {
+                        data.forEach(row => {
+                            html += '<tr>';
+                            fields.forEach(f => {
+                                html += `<td>${row[f] || ''}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+                    }
+                    html += '</tbody>';
+                    
+                    previewTable.innerHTML = html;
+                    previewModal.style.display = 'block';
+                };
+                reader.readAsText(file);
+            });
+        });
+
+        // Close Preview Modal
+        const closePreview = () => {
+            previewModal.style.display = 'none';
+        };
+        closePreviewModalBtn.addEventListener('click', closePreview);
+        closePreviewX.addEventListener('click', closePreview);
+
+        const finishRun = (progressMessage = 'Idle') => {
             isBatchRunning = false;
             isRunning = false;
             pendingArgs = null;
@@ -244,13 +488,14 @@
             startBtn.classList.add('btn-pill');
             startBtn.disabled = false;
             updateModeUI();
+            updateProgressUI(progressMessage);
         };
 
         function processNextInBatch() {
             if (batchQueue.length === 0) {
                 const logArea = document.querySelector('.log-area');
                 logArea.innerHTML += `<div>Batch processing finished.</div>`;
-                finishRun();
+                finishRun('All transfers complete');
                 return;
             }
 
@@ -270,7 +515,11 @@
                 screenshotDir: pendingArgs ? pendingArgs.screenshotDir : null
             };
 
-            ipcRenderer.send('run-mutasi-bcel', args);
+            if (ipcRenderer) {
+                ipcRenderer.send('run-mutasi-bcel', args);
+            } else {
+                debugLog('Cannot start batch item: ipcRenderer missing', true);
+            }
         }
 
         const readFileAsync = (file) => new Promise((resolve, reject) => {
@@ -282,6 +531,11 @@
 
         startBtn.addEventListener('click', () => {
             console.log('Start button clicked');
+            
+            // Reset Device ID and Android Version to trigger re-detection/update
+            document.getElementById('device-id-input').value = 'Device ID will be auto-filled';
+            document.getElementById('android-version-input').value = 'Android Version will be auto-filled';
+            
             const logArea = document.querySelector('.log-area');
             
             try {
@@ -324,6 +578,7 @@
                                 }
 
                                 console.log(`Parsed ${data.length} rows from CSV`);
+                                setupTransferProgress(transferCsvText);
                                 const logAreaRef = document.querySelector('.log-area'); // Re-select to be safe
                                 logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
                                 
@@ -377,6 +632,7 @@
                                 return;
                             }
 
+                            setupTransferProgress(transferCsvText);
                             const logAreaRef = document.querySelector('.log-area');
                             logAreaRef.innerHTML += `<div>Loaded ${data.length} accounts from CSV. Starting batch...</div>`;
 
@@ -419,7 +675,11 @@
                     logArea.innerHTML += `<div>Batch cancelled.</div>`;
                 }
 
-                ipcRenderer.send('stop-mutasi-bcel');
+                if (ipcRenderer) {
+                    ipcRenderer.send('stop-mutasi-bcel');
+                } else {
+                    debugLog('Cannot stop: ipcRenderer missing', true);
+                }
                 startBtn.disabled = true; // Prevent double clicks while stopping
             } catch (err) {
                 console.error('Error in start button handler:', err);
@@ -428,84 +688,90 @@
         });
 
         // Listen for process finished event
-        ipcRenderer.on('process-finished', (event, code) => {
-             // If batch is running, process next
-             if (isBatchRunning) {
-                 // Delay slightly to ensure cleanup?
-                 setTimeout(() => {
-                     processNextInBatch();
-                 }, 2000); // 2 second delay between runs
-                 return;
-             }
-
-             finishRun();
-        });
-
-        ipcRenderer.on('device-info-update', (event, info) => {
-            console.log('Received device info update:', info); // Add logging
-            if (info.deviceId) {
-                const deviceInput = document.getElementById('device-id-input');
-                deviceInput.value = info.deviceId;
-                // Force UI update visual check
-                deviceInput.setAttribute('value', info.deviceId);
-            }
-            if (info.androidVersion) {
-                const versionInput = document.getElementById('android-version-input');
-                versionInput.value = info.androidVersion;
-                versionInput.setAttribute('value', info.androidVersion);
-            }
-        });
-
-        ipcRenderer.on('command-output', (event, message) => {
-            const logArea = document.querySelector('.log-area');
-            // Simple text escape to prevent HTML injection if needed, though usually safe from stdout
-            const div = document.createElement('div');
-            div.textContent = message;
-            logArea.appendChild(div);
-            // Auto scroll to bottom
-            logArea.scrollTop = logArea.scrollHeight;
-        });
-
-        // Device Selection Logic
-        ipcRenderer.on('request-device-selection', (event, { devices, originalArgs }) => {
-            // Store original args to resend later
-            pendingArgs = originalArgs;
-
-            // Clear list
-            deviceList.innerHTML = '';
-            
-            devices.forEach(device => {
-                const li = document.createElement('li');
-                li.className = 'device-item';
-                
-                const idSpan = document.createElement('div');
-                idSpan.className = 'device-item-id';
-                idSpan.textContent = device.id;
-                
-                const modelSpan = document.createElement('div');
-                modelSpan.className = 'device-item-model';
-                modelSpan.textContent = `Model: ${device.model || 'Unknown'}`;
-
-                li.appendChild(idSpan);
-                li.appendChild(modelSpan);
-
-                li.addEventListener('click', () => {
-                    // User selected this device
-                    deviceModal.style.display = 'none';
-                    const logArea = document.querySelector('.log-area');
-                    logArea.innerHTML += `<div>Selected device: ${device.id}</div>`;
-                    
-                    // Send run command again with selected device and preserved args
-                    const newArgs = { ...pendingArgs, deviceId: device.id };
-                    ipcRenderer.send('run-mutasi-bcel', newArgs);
-                });
-
-                deviceList.appendChild(li);
+        if (ipcRenderer) {
+            ipcRenderer.on('process-finished', (event, code) => {
+                 // If batch is running, process next
+                 if (isBatchRunning) {
+                     markProgressCompleted();
+                     // Delay slightly to ensure cleanup?
+                     setTimeout(() => {
+                         processNextInBatch();
+                     }, 2000); // 2 second delay between runs
+                     return;
+                 }
+    
+                 finishRun();
             });
-
-            // Show modal
-            deviceModal.style.display = 'block';
-        });
+    
+            ipcRenderer.on('device-info-update', (event, info) => {
+                console.log('Received device info update:', info); // Add logging
+                if (info.deviceId) {
+                    const deviceInput = document.getElementById('device-id-input');
+                    deviceInput.value = info.deviceId;
+                    // Force UI update visual check
+                    deviceInput.setAttribute('value', info.deviceId);
+                }
+                if (info.androidVersion) {
+                    const versionInput = document.getElementById('android-version-input');
+                    versionInput.value = info.androidVersion;
+                    versionInput.setAttribute('value', info.androidVersion);
+                }
+            });
+    
+            ipcRenderer.on('command-output', (event, message) => {
+                const logArea = document.querySelector('.log-area');
+                // Simple text escape to prevent HTML injection if needed, though usually safe from stdout
+                const div = document.createElement('div');
+                div.textContent = message;
+                logArea.appendChild(div);
+                // Auto scroll to bottom
+                logArea.scrollTop = logArea.scrollHeight;
+                trackTransferLog(message);
+            });
+    
+            // Device Selection Logic
+            ipcRenderer.on('request-device-selection', (event, { devices, originalArgs }) => {
+                // Store original args to resend later
+                pendingArgs = originalArgs;
+    
+                // Clear list
+                deviceList.innerHTML = '';
+                
+                devices.forEach(device => {
+                    const li = document.createElement('li');
+                    li.className = 'device-item';
+                    
+                    const idSpan = document.createElement('div');
+                    idSpan.className = 'device-item-id';
+                    idSpan.textContent = device.id;
+                    
+                    const modelSpan = document.createElement('div');
+                    modelSpan.className = 'device-item-model';
+                    modelSpan.textContent = `Model: ${device.model || 'Unknown'}`;
+    
+                    li.appendChild(idSpan);
+                    li.appendChild(modelSpan);
+    
+                    li.addEventListener('click', () => {
+                        // User selected this device
+                        deviceModal.style.display = 'none';
+                        const logArea = document.querySelector('.log-area');
+                        logArea.innerHTML += `<div>Selected device: ${device.id}</div>`;
+                        
+                        // Send run command again with selected device and preserved args
+                        const newArgs = { ...pendingArgs, deviceId: device.id };
+                        if (ipcRenderer) ipcRenderer.send('run-mutasi-bcel', newArgs);
+                    });
+    
+                    deviceList.appendChild(li);
+                });
+    
+                // Show modal
+                deviceModal.style.display = 'block';
+            });
+        } else {
+            debugLog('Skipping IPC listeners setup (ipcRenderer missing)', true);
+        }
 
         cancelDeviceSelectionBtn.addEventListener('click', () => {
             deviceModal.style.display = 'none';
@@ -525,6 +791,9 @@
         window.onclick = function(event) {
             if (event.target == deviceModal) {
                 cancelDeviceSelectionBtn.click();
+            }
+            if (event.target == previewModal) {
+                closePreview();
             }
         }
 
@@ -556,7 +825,11 @@
                 alert('Nothing to save!');
                 return;
             }
-            ipcRenderer.send('save-log', logContent);
+            if (ipcRenderer) {
+                ipcRenderer.send('save-log', logContent);
+            } else {
+                alert('Cannot save log: IPC not available');
+            }
         });
 
         scrcpyBtn.addEventListener('click', () => {
@@ -567,7 +840,11 @@
             
             // Pass the value directly, avoiding the "Device ID will be auto-filled" placeholder if it's there
             const targetDevice = deviceId === 'Device ID will be auto-filled' ? null : deviceId;
-            ipcRenderer.send('run-scrcpy', { deviceId: targetDevice });
+            if (ipcRenderer) {
+                ipcRenderer.send('run-scrcpy', { deviceId: targetDevice });
+            } else {
+                alert('Cannot run scrcpy: IPC not available');
+            }
         });
     </script>
 </body>
