@@ -3,15 +3,15 @@ const fs = require('fs');
 
 class ImageUtil {
     /**
-     * Resizes an image to ensure it is under a specific file size limit (default 500KB).
+     * Resizes an image to ensure it is under a specific file size limit (default 300KB).
      * It first resizes to a max width of 800px, then iteratively scales down by 20%
      * until the file size is under the limit or the image becomes too small.
      * 
      * @param {string} filePath - Path to the image file
-     * @param {number} maxSizeKB - Maximum file size in KB (default: 500)
+     * @param {number} maxSizeKB - Maximum file size in KB (default: 300)
      * @param {number} minWidth - Minimum width to stop scaling (default: 300)
      */
-    static async resizeImageToLimit(filePath, maxSizeKB = 500, minWidth = 300) {
+    static async resizeImageToLimit(filePath, maxSizeKB = 300, minWidth = 300) {
         try {
             let image = await Jimp.read(filePath);
             
