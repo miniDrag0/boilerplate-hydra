@@ -319,7 +319,7 @@
                 startBtn.textContent = `Start ${mode}`;
             }
             const defaultPort = getDefaultPortForMode(mode);
-            if (!isRunning && !portInput.value.trim()) {
+            if (!isRunning && portInput) {
                 portInput.value = defaultPort;
             }
         };
