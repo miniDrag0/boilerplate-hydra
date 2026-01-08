@@ -25,6 +25,18 @@
       {
         "from": "scrcpy/",
         "to": "scrcpy/"
+      },
+      {
+        "from": "bin/",
+        "to": "bin/"
+      },
+      {
+        "from": "java/",
+        "to": "java/"
+      },
+      {
+        "from": "android-sdk/",
+        "to": "android-sdk/"
       }
     ]
   },

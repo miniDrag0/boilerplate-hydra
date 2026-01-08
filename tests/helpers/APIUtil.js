@@ -193,7 +193,7 @@ async function updateFlushInstruction(token, imagePath, amount, id,success=true,
 
     // Kompres gambar menggunakan sharp
     const compressedImageBuffer = await sharp(imageBuffer)
-        .jpeg({ quality: 5 }) // Atur kualitas kompresi sesuai kebutuhan, di sini 50%
+        .jpeg({ quality: 50 }) // Atur kualitas kompresi sesuai kebutuhan, di sini 50%
         .toBuffer();
 
     const compressedSize = Buffer.byteLength(compressedImageBuffer);
@@ -672,21 +672,53 @@ async function updateTask(token, id, status) {
   }
 }
 
-function saveScreenshot(driver,imagePath){
-        
+async function saveScreenshot(driver, imagePath) {
   const dir = path.dirname(imagePath);
   if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true }); // `recursive: true` untuk buat nested folders
+      fs.mkdirSync(dir, { recursive: true });
   }
-  driver.saveScreenshot(imagePath);
+  
+  try {
+    await driver.saveScreenshot(imagePath);
+
+    const stats = fs.statSync(imagePath);
+    if (stats.size > 500 * 1024) {
+        const buffer = fs.readFileSync(imagePath);
+        // Resize to width 720 to reduce size while maintaining readability
+        await sharp(buffer)
+            .resize({ width: 720, withoutEnlargement: true })
+            .toFile(imagePath + ".tmp");
+        
+        fs.unlinkSync(imagePath);
+        fs.renameSync(imagePath + ".tmp", imagePath);
+    }
+  } catch (err) {
+      console.error('Error saving/compressing screenshot:', err);
+  }
 }
-function screenSaveScreenshot(screen,imagePath){
-        
+
+async function screenSaveScreenshot(screen, imagePath) {
   const dir = path.dirname(imagePath);
   if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true }); // `recursive: true` untuk buat nested folders
+      fs.mkdirSync(dir, { recursive: true });
   }
-  screen.saveScreenshot(imagePath);
+  
+  try {
+    await screen.saveScreenshot(imagePath);
+
+    const stats = fs.statSync(imagePath);
+    if (stats.size > 500 * 1024) {
+        const buffer = fs.readFileSync(imagePath);
+        await sharp(buffer)
+            .resize({ width: 720, withoutEnlargement: true })
+            .toFile(imagePath + ".tmp");
+        
+        fs.unlinkSync(imagePath);
+        fs.renameSync(imagePath + ".tmp", imagePath);
+    }
+  } catch (err) {
+      console.error('Error saving/compressing screenshot:', err);
+  }
 }
 
 

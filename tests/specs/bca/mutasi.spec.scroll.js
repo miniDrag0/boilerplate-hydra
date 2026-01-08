@@ -60,7 +60,13 @@ describe('Feature MBCA', () => {
         // driver.activateApp('com.bca');
         // driver.launchApp();
         // await driver.execute('mobile: activateApp', { appId: 'com.bca' });
-        await driver.activateApp('com.bca');
+        if (driver.isAndroid) {
+            await driver.execute('mobile: activateApp', { appId: 'com.bca' });
+        } else {
+            // Fallback or other platform handling if needed
+            // For now, assume Android since it's an APK test
+             await driver.execute('mobile: activateApp', { appId: 'com.bca' });
+        }
         driver.pause(1000);
     });
 

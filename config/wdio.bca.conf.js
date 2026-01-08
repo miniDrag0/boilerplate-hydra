@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const slack = require('wdio-slack-service');
 exports.config = {
     // ====================
@@ -40,7 +41,7 @@ exports.config = {
                     // For more arguments see
                     // https://github.com/webdriverio/webdriverio/tree/master/packages/wdio-appium-service
                 },
-                // command: 'appium',
+                command: path.join(__dirname, '..', 'appium-launcher.cmd'),
             },
         ],
       //   [slack, {

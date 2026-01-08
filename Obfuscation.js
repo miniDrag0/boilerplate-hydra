@@ -7,7 +7,10 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 const EXCLUDE_DIRS = [
   'node_modules',
   'scrcpy',
-  'config'
+  'config',
+  'bin',
+  'java',
+  'android-sdk'
 ];
 
 // Files or folders we do NOT want to copy at all (only check at the root level):
